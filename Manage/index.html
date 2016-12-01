@@ -1,0 +1,90 @@
+<html>
+    <head>
+        <style type="text/css">
+        body{
+            padding:20px;
+            font-family:Arial;
+        }
+        table td{
+            border:1px solid #808080;
+            padding:5px;
+        }
+        </style>
+        <title>SwCacheService Management</title>
+        <script src="https://code.jquery.com/jquery-2.2.4.min.js"
+  integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="
+  crossorigin="anonymous"></script>
+  <script>
+
+  $( document ).ready(function() {
+        
+      $.ajax({
+          url: "/GetKeys",
+          dataType: "json",
+          cache: false,
+          success: function (data) {
+
+              if (data != "FAIL") {
+
+                  for (i = 0; i < data.length; i++) {
+
+                      $("#CacheList").append("<tr><td>" +
+                       data[i] +
+                       "</td><td> <a href='javascript:;' class='delete' data-key='" + data[i] + "'>x</a> </td></tr>");
+                  }
+              }
+
+          },
+          error: function () {
+
+              alert("Error on get");
+          }
+
+      });
+ 
+
+        $("#CacheList").on("click",".delete", function () {
+           
+          $clicked = $(this);
+     
+              $.ajax({
+                    type: "POST", 
+                    url: "/RemoveCache",
+                    data: "CacheKey="+$clicked.attr("data-key"),
+                    cache: false,
+                    success: function (data) {
+                        console.log(data);
+
+                      if(data =="OK")
+                    {
+                        $clicked.closest("tr").remove();
+                    }
+                    else{
+
+                        alert("Error on delete");
+                    }
+
+                    },
+                    error: function () {
+
+                           alert("Error on delete");
+                    }
+
+                }); 
+
+        });
+  });
+  </script>
+    </head>
+    <body>
+        <table id="CacheList" style="width:100%; border-collapse:collapse;">
+            <tr>
+                <td>
+                    Key Name
+                </td>
+                <td> Operation
+                </td>
+            </tr>
+        </table>
+    </body>
+</html>
