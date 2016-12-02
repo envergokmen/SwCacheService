@@ -30,7 +30,7 @@
 
                       $("#CacheList").append("<tr><td>" +
                        data[i] +
-                       "</td><td> <a href='javascript:;' class='delete' data-key='" + data[i] + "'>x</a> </td></tr>");
+                       "</td><td> <a href='javascript:;' class='delete' data-key='" + data[i] + "'>x</a> </td> <td> <a href='javascript:;' class='view' data-key='" + data[i] + "'>view</a> </td></tr>");
                   }
               }
 
@@ -73,6 +73,27 @@
                 }); 
 
         });
+
+        $("#CacheList").on("click", ".view", function () {
+
+            $clicked = $(this);
+
+            $.ajax({
+                type: "POST",
+                url: "/GetCache",
+                data: "CacheKey=" + $clicked.attr("data-key"),
+                cache: false,
+                success: function (data) {
+                    $("pre").html(data); 
+                },
+                error: function () {
+
+                    alert("Error on view");
+                }
+
+            });
+
+        });
   });
   </script>
     </head>
@@ -84,7 +105,14 @@
                 </td>
                 <td> Operation
                 </td>
+                <td>
+                    View
+                </td>
             </tr>
         </table>
+
+        <pre>
+
+        </pre>
     </body>
 </html>
