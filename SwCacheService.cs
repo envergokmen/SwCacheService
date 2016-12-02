@@ -338,7 +338,7 @@ namespace SwCache
                         CacheItemPolicy policy = new CacheItemPolicy();
 
                         cache.Remove(cacheForTheSet.CacheKey);
-
+                         
                         policy.AbsoluteExpiration = cacheForTheSet.CacheEndDate;
                         cache.Add(cacheForTheSet.CacheKey, cacheForTheSet.CacheValue, policy);
                          
@@ -369,7 +369,7 @@ namespace SwCache
             {
                 ObjectCache cache = MemoryCache.Default;
                 var cachedContent = cache.Get(cacheRequest.CacheKey);
-
+              
                 if (cachedContent != null)
                 { 
                     WriteStringToHttpResult(cachedContent.ToString(), context);
