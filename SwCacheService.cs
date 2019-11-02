@@ -43,7 +43,7 @@ namespace SwCache
 
 
             InitializeComponent();
-            
+
             Initialize(Convert.ToInt32(ConfigurationManager.AppSettings["port"]));
 
         }
@@ -58,10 +58,13 @@ namespace SwCache
 
             eventLog1.WriteEntry("Aaah Sw Cachce servisi durdu http server");
         }
-         
+
         private Thread _serverThread;
         private HttpListener _listener;
         private int _port;
+        private bool PersistantMode = false;
+        private static object lockObj = new object();
+        private string CacheFolder = "";
 
         public int Port
         {
@@ -177,7 +180,7 @@ namespace SwCache
         /// </summary>
         /// <param name="responseBody">which text will be write</param>
         /// <param name="context">Current HttpListener Context</param>
-        private void WriteStringToHttpResult(string responseBody, HttpListenerContext context, HttpStatusCode statusCode= HttpStatusCode.OK)
+        private void WriteStringToHttpResult(string responseBody, HttpListenerContext context, HttpStatusCode statusCode = HttpStatusCode.OK)
         {
             try
             {
@@ -215,14 +218,15 @@ namespace SwCache
         /// <param name="context">Current HttpListener Context</param>
         private void RemoveAllCache(HttpListenerContext context)
         {
-            
-            ObjectCache cache = MemoryCache.Default; 
+
+            ObjectCache cache = MemoryCache.Default;
 
             foreach (var item in MemoryCache.Default)
-            { 
+            {
                 cache.Remove(item.Key);
             }
- 
+
+            DeleteFileCacheBulk();
             WriteStringToHttpResult("OK", context);
 
         }
@@ -235,14 +239,14 @@ namespace SwCache
         {
             string path = context.Request.Url.AbsolutePath;
 
-           
+
             if (context.Request.HasEntityBody)
             {
                 string requestBody = GetBodyRequestBodyAsString(context);
                 CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
-                 
+
                 List<string> cacheKeys = new List<string>();
-                 
+
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
                     ObjectCache cache = MemoryCache.Default;
@@ -251,9 +255,11 @@ namespace SwCache
                     {
                         if (item.Key.StartsWith(cacheForRemove.key))
                         {
-                            cache.Remove(item.Key); 
-                        } 
-                    } 
+                            cache.Remove(item.Key);
+                        }
+                    }
+
+                    DeleteFileCacheBulk(cacheForRemove.key);
 
                 }
             }
@@ -279,7 +285,8 @@ namespace SwCache
                 {
 
                     ObjectCache cache = MemoryCache.Default;
-                    cache.Remove(cacheForRemove.key); 
+                    cache.Remove(cacheForRemove.key);
+                    RemoveFileCache(cacheForRemove.key);
 
                 }
             }
@@ -302,23 +309,16 @@ namespace SwCache
 
 
                     string requestBody = GetBodyRequestBodyAsString(context);
-                    CacheRequestViewModel cacheForTheSet =  GetAsCacheRequest(requestBody);
+                    CacheRequestViewModel cacheForTheSet = GetAsCacheRequest(requestBody);
 
                     if (cacheForTheSet != null && !String.IsNullOrWhiteSpace(cacheForTheSet.key) && !String.IsNullOrWhiteSpace(cacheForTheSet.key))
                     {
+                        AddToMemoryCache(cacheForTheSet);
 
-                        ObjectCache cache = MemoryCache.Default;
-                        CacheItemPolicy policy = new CacheItemPolicy();
+                        Task.Run(() =>
+                             AddToFileCache(cacheForTheSet)
+                        );
 
-                        cache.Remove(cacheForTheSet.key);
-                         
-                        if(cacheForTheSet.expiresAt.HasValue)
-                        {
-                            policy.AbsoluteExpiration = cacheForTheSet.expiresAt.Value;
-                        }
-
-                        cache.Add(cacheForTheSet.key, cacheForTheSet.value, policy);
-                         
                         WriteStringToHttpResult("OK", context);
 
 
@@ -332,6 +332,39 @@ namespace SwCache
             }
         }
 
+        private static void AddToMemoryCache(CacheRequestViewModel cacheForTheSet)
+        {
+            ObjectCache cache = MemoryCache.Default;
+            CacheItemPolicy policy = new CacheItemPolicy();
+            //cache.Remove(cacheForTheSet.key);
+
+            if (cacheForTheSet.expiresAt.HasValue)
+            {
+                policy.AbsoluteExpiration = cacheForTheSet.expiresAt.Value;
+            }
+
+            cache.Add(cacheForTheSet.key, cacheForTheSet.value, policy);
+        }
+
+        public void AddToFileCache(CacheRequestViewModel item)
+        {
+            if (!PersistantMode) return;
+
+            try
+            {
+
+                lock (lockObj)
+                {
+                    File.WriteAllText(Path.Combine(this.CacheFolder, item.key + ".txt"), JsonConvert.SerializeObject(item), Encoding.UTF8);
+                }
+
+            }
+            catch (Exception ex)
+            {
+
+
+            }
+        }
         /// <summary>
         /// Get Cached Item with CacheKey
         /// </summary> 
@@ -345,11 +378,140 @@ namespace SwCache
             {
                 ObjectCache cache = MemoryCache.Default;
                 var cachedContent = cache.Get(cacheRequest.key);
-              
+
+                //for persistent mode
+                TryToGetFromFileCache(cacheRequest, cachedContent);
+
                 if (cachedContent != null)
-                { 
+                {
                     WriteStringToHttpResult(cachedContent.ToString(), context);
                 }
+            }
+        }
+
+        private void TryToGetFromFileCache(CacheRequestViewModel cacheRequest, object cachedContent)
+        {
+            try
+            {
+                if (PersistantMode && cachedContent == null)
+                {
+                    var cachedFile = Path.Combine(this.CacheFolder, cacheRequest.key + ".txt");
+                    if (File.Exists(cachedFile))
+                    {
+                        var contentOfFile = File.ReadAllText(cachedFile, Encoding.UTF8);
+
+                        var cachedFileItem = GetAsCacheRequest(contentOfFile);
+                        if (cachedFileItem != null)
+                        {
+                            if (cachedFileItem.expiresAt < DateTime.Now)
+                            {
+                                lock (lockObj)
+                                {
+                                    File.Delete(cachedFile);
+                                }
+                            }
+                            else
+                            {
+                                AddToMemoryCache(cachedFileItem);
+
+                            }
+                        }
+                    }
+
+                }
+            }
+            finally
+            {
+
+            }
+        }
+
+        private void InitializeFileCaches()
+        {
+            try
+            {
+                var files = new DirectoryInfo(this.CacheFolder).GetFiles();
+                foreach (var fileItem in files)
+                {
+                    var cachedFile = fileItem.FullName;
+
+                    if (File.Exists(cachedFile))
+                    {
+                        var contentOfFile = File.ReadAllText(cachedFile, Encoding.UTF8);
+                        var cachedFileItem = GetAsCacheRequest(contentOfFile);
+
+                        if (cachedFileItem != null)
+                        {
+                            if (cachedFileItem.expiresAt < DateTime.Now)
+                            {
+                                lock (this)
+                                {
+                                    File.Delete(cachedFile);
+                                }
+                            }
+                            else
+                            {
+                                AddToMemoryCache(cachedFileItem);
+                            }
+                        }
+                    }
+
+                }
+            }
+            finally
+            {
+
+            }
+        }
+
+        private void DeleteFileCacheBulk(string startsWith = null)
+        {
+            if (!PersistantMode) return;
+
+            try
+            {
+                var files = new DirectoryInfo(this.CacheFolder).GetFiles();
+                if (startsWith != null) files = files.Where(c => c.Name.StartsWith(startsWith)).ToArray();
+
+                foreach (var fileItem in files)
+                {
+                    var cachedFile = fileItem.FullName;
+
+                    if (File.Exists(cachedFile))
+                    {
+                        lock (lockObj)
+                        {
+                            File.Delete(cachedFile);
+                        }
+
+                    }
+                }
+            }
+            finally
+            {
+
+            }
+        }
+
+        private void RemoveFileCache(string key)
+        {
+            if (!PersistantMode) return;
+
+            try
+            {
+                var cachedFile = Path.Combine(this.CacheFolder, key + ".txt");
+                if (File.Exists(cachedFile))
+                {
+                    lock (lockObj)
+                    {
+                        File.Delete(cachedFile);
+                    }
+                }
+
+            }
+            finally
+            {
+
             }
         }
 
@@ -371,27 +533,27 @@ namespace SwCache
                 case "/Manage": Manage(context); break;
                 case "/GetKeys": GetKeys(context); break;
                 case "/GetAll": GetAll(context); break;
-                case "/Flush": RemoveAllCache(context); break; 
+                case "/Flush": RemoveAllCache(context); break;
             }
-             
+
             context.Response.OutputStream.Close();
 
         }
 
         private void GetKeys(HttpListenerContext context)
-        { 
+        {
             string requestBody = GetBodyRequestBodyAsString(context);
-           
-                ObjectCache cache = MemoryCache.Default;
 
-                List<string> keys = new List<string>();
-                foreach (var item in MemoryCache.Default)
-                {
-                    keys.Add(item.Key);
-                }
- 
-                WriteStringToHttpResult(JsonConvert.SerializeObject(keys), context);
-            
+            ObjectCache cache = MemoryCache.Default;
+
+            List<string> keys = new List<string>();
+            foreach (var item in MemoryCache.Default)
+            {
+                keys.Add(item.Key);
+            }
+
+            WriteStringToHttpResult(JsonConvert.SerializeObject(keys), context);
+
             context.Response.OutputStream.Close();
         }
 
@@ -404,7 +566,7 @@ namespace SwCache
             List<CacheRequestViewModel> keys = new List<CacheRequestViewModel>();
             foreach (var item in MemoryCache.Default)
             {
-                keys.Add( new CacheRequestViewModel { key= item.Key , value = Convert.ToString(item.Value) });
+                keys.Add(new CacheRequestViewModel { key = item.Key, value = Convert.ToString(item.Value) });
             }
 
             WriteStringToHttpResult(JsonConvert.SerializeObject(keys), context);
@@ -415,10 +577,10 @@ namespace SwCache
 
         private void Manage(HttpListenerContext context)
         {
-           
+
             string appLocation = System.Reflection.Assembly.GetEntryAssembly().Location;
-            var directoryPath = Path.GetDirectoryName(appLocation); 
-            string filename = Path.Combine(directoryPath, "Manage","index.html");
+            var directoryPath = Path.GetDirectoryName(appLocation);
+            string filename = Path.Combine(directoryPath, "Manage", "index.html");
 
             if (File.Exists(filename))
             {
@@ -426,11 +588,8 @@ namespace SwCache
                 {
                     Stream input = new FileStream(filename, FileMode.Open);
 
-                    //Adding permanent http response headers 
-                    context.Response.ContentType = "application/json"; 
+                    context.Response.ContentType = "application/json";
                     context.Response.ContentLength64 = input.Length;
-                    //context.Response.AddHeader("Date", DateTime.Now.ToString("r"));
-                    //context.Response.AddHeader("Last-Modified", System.IO.File.GetLastWriteTime(filename).ToString("r"));
 
                     byte[] buffer = new byte[1024 * 16];
                     int nbytes;
@@ -459,6 +618,15 @@ namespace SwCache
         private void Initialize(int port)
         {
             this._port = port;
+            this.PersistantMode = Convert.ToBoolean(ConfigurationManager.AppSettings["persistant"]);
+            this.CacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CachedFiles");
+
+            if (this.PersistantMode)
+            {
+                if (!Directory.Exists(this.CacheFolder)) { Directory.CreateDirectory(this.CacheFolder); }
+                InitializeFileCaches();
+            }
+
             _serverThread = new Thread(this.Listen);
             _serverThread.Start();
         }
