@@ -45,9 +45,9 @@ It is native .net solution fully compatible with windows, can be run as windows 
 ```
 
 
-## Check setting below for the persistant disk based file false by default. 
+## Check setting below for the persistent disk based file false by default. 
 This may affect the cache performance little bit, but it doesn't loose caches on computer or service restart.
-It loads all the from /appdir/CachedFiles and adds all of the keys in memory again.
+It loads all the from /appdir/CachedFiles and adds all of the keys in memory again. Persistent mode works with in memory (Not only disk based cache)
 
 ```xml
   <appSettings>
