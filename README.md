@@ -12,8 +12,8 @@ They are little bit complex and sometimes may cause issues. This project may hel
 
 It is native .net solution fully compatible with windows, can be run as windows service.
 
-
-## POST Request Detail to set cache -> http://localhost:8080/SetCache
+## Runs at localhost -> http://localhost:8080
+## POST Request Detail to set cache -> /SetCache
 
 ```json
 {
@@ -23,7 +23,7 @@ It is native .net solution fully compatible with windows, can be run as windows 
 }
 ```
 
-## GET Request detail to get single cache item -> http://localhost:8080/GetCache
+## GET Request detail to get single cache item ->/GetCache
 
 ```json
 {
@@ -31,9 +31,9 @@ It is native .net solution fully compatible with windows, can be run as windows 
 }
 ```
 
-## Flush all items from the cache  -> http://localhost:8080/Flush
-## Get List of the keys  -> http://localhost:8080/GetKeys
-## Get All cache items with values -> http://localhost:8080/GetAll
+## Flush all items from the cache  -> /Flush
+## Get List of the keys  -> /GetKeys
+## Get All cache items with values -> /GetAll
 
 
 ## Find the port configuration under app.config
