@@ -117,8 +117,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="bin\Debug\Manage\index.html" />
     <Content Include="Manage\index.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="bin\Debug\Manage\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
