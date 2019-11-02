@@ -184,7 +184,7 @@ namespace SwCache
                 Stream input = GenerateStreamFromString(responseBody);
 
                 context.Response.ContentEncoding = System.Text.Encoding.UTF8;
-                context.Response.ContentType = "text/html"; // _mimeTypeMappings.TryGetValue(".html", out mime) ? mime : "application/octet-stream";
+                context.Response.ContentType = "application/json"; // _mimeTypeMappings.TryGetValue(".html", out mime) ? mime : "application/octet-stream";
                 context.Response.ContentLength64 = input.Length;
                 context.Response.AddHeader("Date", DateTime.Now.ToString("r"));
                 context.Response.AddHeader("Last-Modified", System.IO.File.GetLastWriteTime(path).ToString("r"));
@@ -426,7 +426,7 @@ namespace SwCache
                     Stream input = new FileStream(filename, FileMode.Open);
 
                     //Adding permanent http response headers 
-                    context.Response.ContentType = "text/html"; 
+                    context.Response.ContentType = "application/json"; 
                     context.Response.ContentLength64 = input.Length;
                     //context.Response.AddHeader("Date", DateTime.Now.ToString("r"));
                     //context.Response.AddHeader("Last-Modified", System.IO.File.GetLastWriteTime(filename).ToString("r"));
