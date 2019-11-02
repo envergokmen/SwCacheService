@@ -51,6 +51,6 @@ It loads all the from /appdir/CachedFiles and adds all of the keys in memory aga
 
 ```xml
   <appSettings>
-    <add key="persistant" value="false" />
+    <add key="persistent" value="false" />
   </appSettings>
 ```
