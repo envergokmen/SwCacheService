@@ -13,17 +13,17 @@ They are little bit complex and sometimes may cause issues. This project may hel
 It is native .net solution fully compatible with windows, can be run as windows service.
 
 
-## Post Request Detail to set cache -> http://localhost:8080/SetCache
+## POST Request Detail to set cache -> http://localhost:8080/SetCache
 
 ```json
 {
-	"expiresAt":"2020-10-10",
+	"expiresAt":"2030-10-10",
 	"key":"YourKeyHere",
 	"value":"Your Value Here"
 }
 ```
 
-## GET Request Detail to set cache -> http://localhost:8080/GetCache
+## GET Request detail to get single cache item -> http://localhost:8080/GetCache
 
 ```json
 {
@@ -31,9 +31,9 @@ It is native .net solution fully compatible with windows, can be run as windows 
 }
 ```
 
-## Flush all items from the cache Request Detail to set cache -> http://localhost:8080/Flush
-## GET Request Detail to set cache -> http://localhost:8080/GetKeys
-## Get All Request Detail to set cache -> http://localhost:8080/GetAll
+## Flush all items from the cache  -> http://localhost:8080/Flush
+## Get List of the keys  -> http://localhost:8080/GetKeys
+## Get All cache items with values -> http://localhost:8080/GetAll
 
 
 ## find the port configuration under app.config
