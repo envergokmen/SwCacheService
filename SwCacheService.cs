@@ -3,6 +3,7 @@ using SwCache.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Configuration;
 using System.Data;
 using System.Diagnostics;
 using System.IO;
@@ -43,7 +44,7 @@ namespace SwCache
 
             InitializeComponent();
             
-            Initialize(8080);
+            Initialize(Convert.ToInt32(ConfigurationManager.AppSettings["port"]));
 
         }
 
