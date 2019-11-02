@@ -9,9 +9,9 @@ namespace SwCache.ViewModels
     
     public class CacheRequestViewModel
     {
-        public string CacheKey { get; set; }
-        public string CacheValue { get; set; }
-        public DateTime CacheEndDate { get; set; }
+        public string key { get; set; }
+        public string value { get; set; }
+        public DateTime? expiresAt { get; set; }
 
     }
 }

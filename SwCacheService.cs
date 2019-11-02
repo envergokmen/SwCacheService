@@ -163,39 +163,11 @@ namespace SwCache
         /// <summary>
         /// Parse Request Params and Convert To CacheViewModel Object
         /// </summary>
-        /// <param name="requestString">request post body</param>
+        /// <param name="requestBody">request post body</param>
         /// <returns>CacheRequestViewModel</returns>
-        private CacheRequestViewModel GetAsCacheRequest(string requestString)
+        private CacheRequestViewModel GetAsCacheRequest(string requestBody)
         {
-
-            CacheRequestViewModel cacheRequest = null;
-            var paramsAndValues = requestString.Split('&');
-
-            if (paramsAndValues != null && paramsAndValues.Length >= 1)
-            {
-                cacheRequest = new CacheRequestViewModel();
-
-                foreach (var curParamAndVal in paramsAndValues)
-                {
-                    var keyAndVal = curParamAndVal.Split('=');
-
-                    if (keyAndVal != null && keyAndVal.Length >= 2)
-                    {
-                        string key = keyAndVal[0];
-                        string value = keyAndVal[1];
-                        switch (key)
-                        {
-                            case "CacheKey": cacheRequest.CacheKey = value; break;
-                            case "CacheValue": cacheRequest.CacheValue = value; break;
-                            case "CacheEndDate": cacheRequest.CacheEndDate = Convert.ToDateTime(value); break;
-                        }
-
-                    }
-                }
-            }
-
-
-            return cacheRequest;
+            return JsonConvert.DeserializeObject<CacheRequestViewModel>(requestBody);
 
         }
 
@@ -270,13 +242,13 @@ namespace SwCache
                  
                 List<string> cacheKeys = new List<string>();
                  
-                if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.CacheKey))
+                if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
                     ObjectCache cache = MemoryCache.Default;
 
                     foreach (var item in MemoryCache.Default)
                     {
-                        if (item.Key.StartsWith(cacheForRemove.CacheKey))
+                        if (item.Key.StartsWith(cacheForRemove.key))
                         {
                             cache.Remove(item.Key); 
                         } 
@@ -302,11 +274,11 @@ namespace SwCache
                 string requestBody = GetBodyRequestBodyAsString(context);
                 CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
 
-                if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.CacheKey))
+                if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
 
                     ObjectCache cache = MemoryCache.Default;
-                    cache.Remove(cacheForRemove.CacheKey); 
+                    cache.Remove(cacheForRemove.key); 
 
                 }
             }
@@ -329,18 +301,22 @@ namespace SwCache
 
 
                     string requestBody = GetBodyRequestBodyAsString(context);
-                    CacheRequestViewModel cacheForTheSet = GetAsCacheRequest(requestBody);
+                    CacheRequestViewModel cacheForTheSet =  GetAsCacheRequest(requestBody);
 
-                    if (cacheForTheSet != null && !String.IsNullOrWhiteSpace(cacheForTheSet.CacheKey) && !String.IsNullOrWhiteSpace(cacheForTheSet.CacheValue))
+                    if (cacheForTheSet != null && !String.IsNullOrWhiteSpace(cacheForTheSet.key) && !String.IsNullOrWhiteSpace(cacheForTheSet.key))
                     {
 
                         ObjectCache cache = MemoryCache.Default;
                         CacheItemPolicy policy = new CacheItemPolicy();
 
-                        cache.Remove(cacheForTheSet.CacheKey);
+                        cache.Remove(cacheForTheSet.key);
                          
-                        policy.AbsoluteExpiration = cacheForTheSet.CacheEndDate;
-                        cache.Add(cacheForTheSet.CacheKey, cacheForTheSet.CacheValue, policy);
+                        if(cacheForTheSet.expiresAt.HasValue)
+                        {
+                            policy.AbsoluteExpiration = cacheForTheSet.expiresAt.Value;
+                        }
+
+                        cache.Add(cacheForTheSet.key, cacheForTheSet.value, policy);
                          
                         WriteStringToHttpResult("OK", context);
 
@@ -351,7 +327,6 @@ namespace SwCache
                 {
                     WriteStringToHttpResult("FAIL", context, HttpStatusCode.InternalServerError);
 
-                    //throw;
                 }
             }
         }
@@ -365,10 +340,10 @@ namespace SwCache
             string requestBody = GetBodyRequestBodyAsString(context);
             CacheRequestViewModel cacheRequest = GetAsCacheRequest(requestBody);
 
-            if (cacheRequest != null && !String.IsNullOrWhiteSpace(cacheRequest.CacheKey))
+            if (cacheRequest != null && !String.IsNullOrWhiteSpace(cacheRequest.key))
             {
                 ObjectCache cache = MemoryCache.Default;
-                var cachedContent = cache.Get(cacheRequest.CacheKey);
+                var cachedContent = cache.Get(cacheRequest.key);
               
                 if (cachedContent != null)
                 { 
@@ -394,6 +369,7 @@ namespace SwCache
                 case "/RemoveCacheStartsWith": RemoveCacheStartsWith(context); break;
                 case "/Manage": Manage(context); break;
                 case "/GetKeys": GetKeys(context); break;
+                case "/GetAll": GetAll(context); break;
                 case "/Flush": RemoveAllCache(context); break; 
             }
              
@@ -415,6 +391,23 @@ namespace SwCache
  
                 WriteStringToHttpResult(JsonConvert.SerializeObject(keys), context);
             
+            context.Response.OutputStream.Close();
+        }
+
+        private void GetAll(HttpListenerContext context)
+        {
+            string requestBody = GetBodyRequestBodyAsString(context);
+
+            ObjectCache cache = MemoryCache.Default;
+
+            List<CacheRequestViewModel> keys = new List<CacheRequestViewModel>();
+            foreach (var item in MemoryCache.Default)
+            {
+                keys.Add( new CacheRequestViewModel { key= item.Key , value = Convert.ToString(item.Value) });
+            }
+
+            WriteStringToHttpResult(JsonConvert.SerializeObject(keys), context);
+
             context.Response.OutputStream.Close();
         }
 
