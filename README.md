@@ -36,7 +36,7 @@ It is native .net solution fully compatible with windows, can be run as windows 
 ## Get All cache items with values -> http://localhost:8080/GetAll
 
 
-## find the port configuration under app.config
+## Find the port configuration under app.config
 
 ```xml
   <appSettings>
