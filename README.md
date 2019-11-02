@@ -43,3 +43,14 @@ It is native .net solution fully compatible with windows, can be run as windows 
       <add key="port" value="8080" />
   </appSettings>
 ```
+
+
+## Check setting below for the persistant disk based file false by default. 
+This may affect the cache performance little bit, but it doesn't loose caches on computer or service restart.
+It loads all the from /appdir/CachedFiles and adds all of the keys in memory again.
+
+```xml
+  <appSettings>
+    <add key="persistant" value="false" />
+  </appSettings>
+```

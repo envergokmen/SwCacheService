@@ -62,7 +62,7 @@ namespace SwCache
         private Thread _serverThread;
         private HttpListener _listener;
         private int _port;
-        private bool PersistantMode = false;
+        private bool PersistentMode = false;
         private static object lockObj = new object();
         private string CacheFolder = "";
 
@@ -348,7 +348,7 @@ namespace SwCache
 
         public void AddToFileCache(CacheRequestViewModel item)
         {
-            if (!PersistantMode) return;
+            if (!PersistentMode) return;
 
             try
             {
@@ -393,7 +393,7 @@ namespace SwCache
         {
             try
             {
-                if (PersistantMode && cachedContent == null)
+                if (PersistentMode && cachedContent == null)
                 {
                     var cachedFile = Path.Combine(this.CacheFolder, cacheRequest.key + ".txt");
                     if (File.Exists(cachedFile))
@@ -466,7 +466,7 @@ namespace SwCache
 
         private void DeleteFileCacheBulk(string startsWith = null)
         {
-            if (!PersistantMode) return;
+            if (!PersistentMode) return;
 
             try
             {
@@ -495,7 +495,7 @@ namespace SwCache
 
         private void RemoveFileCache(string key)
         {
-            if (!PersistantMode) return;
+            if (!PersistentMode) return;
 
             try
             {
@@ -618,10 +618,10 @@ namespace SwCache
         private void Initialize(int port)
         {
             this._port = port;
-            this.PersistantMode = Convert.ToBoolean(ConfigurationManager.AppSettings["persistant"]);
+            this.PersistentMode = Convert.ToBoolean(ConfigurationManager.AppSettings["persistent"]);
             this.CacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CachedFiles");
 
-            if (this.PersistantMode)
+            if (this.PersistentMode)
             {
                 if (!Directory.Exists(this.CacheFolder)) { Directory.CreateDirectory(this.CacheFolder); }
                 InitializeFileCaches();
