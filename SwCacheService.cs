@@ -247,7 +247,7 @@ namespace SwCache
 
             lock (lockObj)
             {
-                var cache2 = new Dictionary<string, CacheRequestViewModel>();
+                var cache2 =  new Dictionary<string, CacheRequestViewModel>();
 
                 foreach (var item in cache)
                 {
@@ -282,14 +282,20 @@ namespace SwCache
 
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
-
-                    foreach (var item in cache.ToList())
+                    lock (lockObj)
                     {
-                        if (item.Key.StartsWith(cacheForRemove.key))
+
+                        foreach (var item in cache.ToList())
                         {
-                            cache.Remove(item.Key);
+                            if (item.Key.StartsWith(cacheForRemove.key))
+                            {
+                                cache.Remove(item.Key);
+                            }
                         }
+
                     }
+
+                    Task.Run(() => AllocateMemory());
 
                     DeleteFileCacheBulk(cacheForRemove.key);
 
@@ -345,10 +351,7 @@ namespace SwCache
                     {
                         AddToMemoryCache(cacheForTheSet);
 
-                        Task.Run(() =>
-                             AddToFileCache(cacheForTheSet)
-                        );
-
+                        Task.Run(() => AddToFileCache(cacheForTheSet));
                         Task.Run(() => AllocateMemory());
 
                         WriteStringToHttpResult("OK", context);
@@ -390,7 +393,7 @@ namespace SwCache
                 }
 
             }
-            catch (Exception ex)
+            finally
             {
 
 
@@ -416,9 +419,9 @@ namespace SwCache
                     lock (lockObj)
                     {
                         cache.Remove(cachedContent.key);
-                        Task.Run(() => AllocateMemory());
-
                     }
+
+                    Task.Run(() => AllocateMemory());
                 }
 
                 //for persistent mode
