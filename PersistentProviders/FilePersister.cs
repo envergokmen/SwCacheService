@@ -14,6 +14,11 @@ namespace SwCache.PersistentProviders
         private static object lockObj = new object();
         public bool PersistentMode { get; set; } = false;
         private string CacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CachedFiles");
+       
+        public FilePersister()
+        {
+            if (!Directory.Exists(this.CacheFolder)) { Directory.CreateDirectory(this.CacheFolder); }
+        }
 
         public void AddToPersistentCache(CacheRequestViewModel item)
         {
@@ -35,7 +40,7 @@ namespace SwCache.PersistentProviders
             }
         }
 
-        public void DeleteFileCacheBulk(string startsWith = null)
+        public void DeleteCacheBulk(string startsWith = null)
         {
             if (!PersistentMode) return;
 
@@ -108,7 +113,7 @@ namespace SwCache.PersistentProviders
             return cachedItems;
         }
 
-        public void RemoveFileCache(string key)
+        public void DeleteCache(string key)
         {
             if (!PersistentMode) return;
 

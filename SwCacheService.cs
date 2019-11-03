@@ -229,7 +229,7 @@ namespace SwCache
 
             Task.Run(() => GC.Collect());
 
-            DeleteFileCacheBulk();
+            persister.DeleteCacheBulk();
             WriteStringToHttpResult("OK", context);
 
 
@@ -241,7 +241,7 @@ namespace SwCache
         /// <param name="context">Current HttpListener Context</param>
         private void AllocateMemory()
         {
-            if (lastAllocationDate > DateTime.Now.AddMinutes(-5))
+            if (lastAllocationDate > DateTime.Now.AddMinutes(-1))
             {
                 return;
             }
@@ -275,7 +275,6 @@ namespace SwCache
         {
             string path = context.Request.Url.AbsolutePath;
 
-
             if (context.Request.HasEntityBody)
             {
                 string requestBody = GetBodyRequestBodyAsString(context);
@@ -298,7 +297,7 @@ namespace SwCache
 
                     Task.Run(() => AllocateMemory());
 
-                    DeleteFileCacheBulk(cacheForRemove.key);
+                   persister.DeleteCacheBulk(cacheForRemove.key);
 
                 }
             }
@@ -323,7 +322,7 @@ namespace SwCache
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
                     cache.Remove(cacheForRemove.key);
-                    RemoveFileCache(cacheForRemove.key);
+                    persister.DeleteCache(cacheForRemove.key);
 
                 }
             }
@@ -352,7 +351,7 @@ namespace SwCache
                     {
                         AddToMemoryCache(cacheForTheSet);
 
-                        Task.Run(() => AddToFileCache(cacheForTheSet));
+                        Task.Run(() => persister.AddToPersistentCache(cacheForTheSet));
                         Task.Run(() => AllocateMemory());
 
                         WriteStringToHttpResult("OK", context);
@@ -381,25 +380,6 @@ namespace SwCache
             }
         }
 
-        public void AddToFileCache(CacheRequestViewModel item)
-        {
-            if (!PersistentMode) return;
-
-            try
-            {
-
-                lock (lockObj)
-                {
-                    File.WriteAllText(Path.Combine(this.CacheFolder, item.key + ".txt"), JsonConvert.SerializeObject(item), Encoding.UTF8);
-                }
-
-            }
-            finally
-            {
-
-
-            }
-        }
 
         /// <summary>
         /// Get Cached Item with CacheKey
@@ -429,7 +409,7 @@ namespace SwCache
                 //for persistent mode
                 if(cachedContent==null)
                 {
-                    cachedContent = TryToGetFromFileCache(cacheRequest.key);
+                    cachedContent = persister.TryToGetFromPersistent(cacheRequest.key);
                 }
 
                 if (cachedContent != null)
@@ -438,136 +418,7 @@ namespace SwCache
                 }
             }
         }
-
-        private CacheRequestViewModel TryToGetFromFileCache(string key)
-        {
-            CacheRequestViewModel cachedFileItem = null;
-
-            try
-            {
-                if (PersistentMode )
-                {
-                    var cachedFile = Path.Combine(this.CacheFolder, key + ".txt");
-                    if (File.Exists(cachedFile))
-                    {
-                        var contentOfFile = File.ReadAllText(cachedFile, Encoding.UTF8);
-                        cachedFileItem = GetAsCacheRequest(contentOfFile);
-
-                        if (cachedFileItem != null)
-                        {
-                            if (cachedFileItem.expiresAt < DateTime.Now)
-                            {
-                                lock (lockObj)
-                                {
-                                    File.Delete(cachedFile);
-                                }
-                            }
-                            else
-                            {
-                                AddToMemoryCache(cachedFileItem);
-
-                            }
-                        }
-                    }
-
-                }
-            }
-            finally
-            {
-               
-            }
-
-            return cachedFileItem;
-        }
-
-        private void InitializeFileCaches()
-        {
-            try
-            {
-                var files = new DirectoryInfo(this.CacheFolder).GetFiles();
-                foreach (var fileItem in files)
-                {
-                    var cachedFile = fileItem.FullName;
-
-                    if (File.Exists(cachedFile))
-                    {
-                        var contentOfFile = File.ReadAllText(cachedFile, Encoding.UTF8);
-                        var cachedFileItem = GetAsCacheRequest(contentOfFile);
-
-                        if (cachedFileItem != null)
-                        {
-                            if (cachedFileItem.expiresAt < DateTime.Now)
-                            {
-                                lock (this)
-                                {
-                                    File.Delete(cachedFile);
-                                }
-                            }
-                            else
-                            {
-                                AddToMemoryCache(cachedFileItem);
-                            }
-                        }
-                    }
-
-                }
-            }
-            finally
-            {
-
-            }
-        }
-
-        private void DeleteFileCacheBulk(string startsWith = null)
-        {
-            if (!PersistentMode) return;
-
-            try
-            {
-                var files = new DirectoryInfo(this.CacheFolder).GetFiles();
-                if (startsWith != null) files = files.Where(c => c.Name.StartsWith(startsWith)).ToArray();
-
-                foreach (var fileItem in files)
-                {
-                    var cachedFile = fileItem.FullName;
-
-                    if (File.Exists(cachedFile))
-                    {
-                        lock (lockObj)
-                        {
-                            File.Delete(cachedFile);
-                        }
-
-                    }
-                }
-            }
-            finally
-            {
-
-            }
-        }
-
-        private void RemoveFileCache(string key)
-        {
-            if (!PersistentMode) return;
-
-            try
-            {
-                var cachedFile = Path.Combine(this.CacheFolder, key + ".txt");
-                if (File.Exists(cachedFile))
-                {
-                    lock (lockObj)
-                    {
-                        File.Delete(cachedFile);
-                    }
-                }
-
-            }
-            finally
-            {
-
-            }
-        }
+         
 
         /// <summary>
         /// Process Http Request
@@ -670,13 +521,10 @@ namespace SwCache
         {
             this._port = port;
             this.PersistentMode = Convert.ToBoolean(ConfigurationManager.AppSettings["persistent"]);
-            //this.CacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CachedFiles");
 
             if (this.PersistentMode)
             {
-                //this.cache =
-                //if (!Directory.Exists(this.CacheFolder)) { Directory.CreateDirectory(this.CacheFolder); }
-                //InitializeFileCaches();
+                this.cache = persister.GetAllCachedItems();
             }
 
             _serverThread = new Thread(this.Listen);

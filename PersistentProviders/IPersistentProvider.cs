@@ -13,8 +13,8 @@ namespace SwCache.PersistentProviders
         void AddToPersistentCache(CacheRequestViewModel item);
         CacheRequestViewModel TryToGetFromPersistent(string key);
         Dictionary<string, CacheRequestViewModel> GetAllCachedItems();
-        void DeleteFileCacheBulk(string startsWith = null);
-        void RemoveFileCache(string key);
+        void DeleteCacheBulk(string startsWith = null);
+        void DeleteCache(string key);
 
     }
 }

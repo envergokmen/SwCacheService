@@ -13,14 +13,15 @@ namespace SwCache.PersistentProviders
         {
             get
             {
-                string persistentType = ConfigurationManager.AppSettings["persister"];
+                string persistentType = ConfigurationManager.AppSettings["persisterType"];
 
                 IPersistentProvider persister;
 
                 switch (persistentType)
                 {
+                    case "file": persister = new FilePersister(); break;
 
-                    default: persister = new FilePersister(); break;
+                    default: persister = new NoPersistentProvider(); break;
                 }
 
                 return persister;
