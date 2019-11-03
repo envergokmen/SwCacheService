@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using SwCache.PersistentProviders;
 using SwCache.ViewModels;
 using System;
 using System.Collections.Generic;
@@ -64,10 +65,10 @@ namespace SwCache
         private int _port;
         private bool PersistentMode = false;
         private static object lockObj = new object();
-        private string CacheFolder = "";
+        //private string CacheFolder = "";
         private Dictionary<string, CacheRequestViewModel> cache = new Dictionary<string, CacheRequestViewModel>();
         private DateTime lastAllocationDate = DateTime.Now;
-
+        IPersistentProvider persister = new PersistentFactory().Persister;
         public int Port
         {
             get { return _port; }
@@ -399,6 +400,7 @@ namespace SwCache
 
             }
         }
+
         /// <summary>
         /// Get Cached Item with CacheKey
         /// </summary> 
@@ -425,7 +427,10 @@ namespace SwCache
                 }
 
                 //for persistent mode
-                TryToGetFromFileCache(cacheRequest, cachedContent);
+                if(cachedContent==null)
+                {
+                    cachedContent = TryToGetFromFileCache(cacheRequest.key);
+                }
 
                 if (cachedContent != null)
                 {
@@ -434,18 +439,20 @@ namespace SwCache
             }
         }
 
-        private void TryToGetFromFileCache(CacheRequestViewModel cacheRequest, object cachedContent)
+        private CacheRequestViewModel TryToGetFromFileCache(string key)
         {
+            CacheRequestViewModel cachedFileItem = null;
+
             try
             {
-                if (PersistentMode && cachedContent == null)
+                if (PersistentMode )
                 {
-                    var cachedFile = Path.Combine(this.CacheFolder, cacheRequest.key + ".txt");
+                    var cachedFile = Path.Combine(this.CacheFolder, key + ".txt");
                     if (File.Exists(cachedFile))
                     {
                         var contentOfFile = File.ReadAllText(cachedFile, Encoding.UTF8);
+                        cachedFileItem = GetAsCacheRequest(contentOfFile);
 
-                        var cachedFileItem = GetAsCacheRequest(contentOfFile);
                         if (cachedFileItem != null)
                         {
                             if (cachedFileItem.expiresAt < DateTime.Now)
@@ -467,8 +474,10 @@ namespace SwCache
             }
             finally
             {
-
+               
             }
+
+            return cachedFileItem;
         }
 
         private void InitializeFileCaches()
@@ -661,12 +670,13 @@ namespace SwCache
         {
             this._port = port;
             this.PersistentMode = Convert.ToBoolean(ConfigurationManager.AppSettings["persistent"]);
-            this.CacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CachedFiles");
+            //this.CacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CachedFiles");
 
             if (this.PersistentMode)
             {
-                if (!Directory.Exists(this.CacheFolder)) { Directory.CreateDirectory(this.CacheFolder); }
-                InitializeFileCaches();
+                //this.cache =
+                //if (!Directory.Exists(this.CacheFolder)) { Directory.CreateDirectory(this.CacheFolder); }
+                //InitializeFileCaches();
             }
 
             _serverThread = new Thread(this.Listen);

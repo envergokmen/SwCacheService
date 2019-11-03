@@ -80,6 +80,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PersistentProviders\FilePersister.cs" />
+    <Compile Include="PersistentProviders\PersistentFactory.cs" />
+    <Compile Include="PersistentProviders\IPersistentProvider.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
     </Compile>
