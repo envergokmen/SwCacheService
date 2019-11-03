@@ -51,7 +51,7 @@ It loads all the from /appdir/CachedFiles and adds all of the keys in memory aga
 
 ```xml
   <appSettings>
-    <add key="persistentType" value="None" /> <!--file, None or write a customProvider -->
+    <add key="persisterType" value="None" /> <!--file, None or write a customProvider -->
   </appSettings>
 ```
 
