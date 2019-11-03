@@ -164,7 +164,7 @@
                     cache: false,
                     success: function (data) {
                         //  $("pre").html(syntaxHighlight(JSON.stringify(data), undefined, 2));
-                        output(syntaxHighlight(JSON.stringify({ ...JSON.parse(data.value), expiresAt: data.expiresAt }, undefined, 4)));
+                        output(syntaxHighlight(JSON.stringify({ ...JSON.parse(data.value), key: data.key, expiresAt: data.expiresAt }, undefined, 4)));
                     },
                     error: function () {
 
