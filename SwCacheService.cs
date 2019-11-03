@@ -66,6 +66,7 @@ namespace SwCache
         private static object lockObj = new object();
         private string CacheFolder = "";
         private Dictionary<string, CacheRequestViewModel> cache = new Dictionary<string, CacheRequestViewModel>();
+        private DateTime lastAllocationDate = DateTime.Now;
 
         public int Port
         {
@@ -225,10 +226,42 @@ namespace SwCache
                 cache = new Dictionary<string, CacheRequestViewModel>();
             }
 
-            Task.Run(() => GC.Collect() );
+            Task.Run(() => GC.Collect());
 
             DeleteFileCacheBulk();
             WriteStringToHttpResult("OK", context);
+
+
+        }
+
+        /// <summary>
+        /// Moves all keys to new dictionary
+        /// </summary>
+        /// <param name="context">Current HttpListener Context</param>
+        private void AllocateMemory()
+        {
+            if (lastAllocationDate > DateTime.Now.AddMinutes(-1))
+            {
+                return;
+            }
+
+            lock (lockObj)
+            {
+                var cache2 = new Dictionary<string, CacheRequestViewModel>();
+
+                foreach (var item in cache)
+                {
+                    if (item.Value.expiresAt > DateTime.Now)
+                    {
+                        cache2.Add(item.Key, item.Value);
+                    }
+                }
+
+                cache = cache2;
+                GC.Collect();
+                lastAllocationDate = DateTime.Now;
+
+            }
 
 
         }
@@ -246,8 +279,6 @@ namespace SwCache
             {
                 string requestBody = GetBodyRequestBodyAsString(context);
                 CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
-
-                List<string> cacheKeys = new List<string>();
 
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
@@ -318,6 +349,8 @@ namespace SwCache
                              AddToFileCache(cacheForTheSet)
                         );
 
+                        Task.Run(() => AllocateMemory());
+
                         WriteStringToHttpResult("OK", context);
 
 
@@ -374,7 +407,19 @@ namespace SwCache
 
             if (cacheRequest != null && !String.IsNullOrWhiteSpace(cacheRequest.key))
             {
-                var cachedContent = cache[cacheRequest.key];
+
+                CacheRequestViewModel cachedContent = null;
+                cache.TryGetValue(cacheRequest.key, out cachedContent);
+
+                if (cachedContent != null && cachedContent.expiresAt < DateTime.Now)
+                {
+                    lock (lockObj)
+                    {
+                        cache.Remove(cachedContent.key);
+                        Task.Run(() => AllocateMemory());
+
+                    }
+                }
 
                 //for persistent mode
                 TryToGetFromFileCache(cacheRequest, cachedContent);
