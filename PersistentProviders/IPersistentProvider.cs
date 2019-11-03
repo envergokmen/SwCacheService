@@ -9,7 +9,6 @@ namespace SwCache.PersistentProviders
 {
     public interface IPersistentProvider
     {
-        bool PersistentMode { get; set; }
         void AddToPersistentCache(CacheRequestViewModel item);
         CacheRequestViewModel TryToGetFromPersistent(string key);
         Dictionary<string, CacheRequestViewModel> GetAllCachedItems();

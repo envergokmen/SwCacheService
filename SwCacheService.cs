@@ -63,7 +63,6 @@ namespace SwCache
         private Thread _serverThread;
         private HttpListener _listener;
         private int _port;
-        private bool PersistentMode = false;
         private static object lockObj = new object();
         //private string CacheFolder = "";
         private Dictionary<string, CacheRequestViewModel> cache = new Dictionary<string, CacheRequestViewModel>();
@@ -410,6 +409,10 @@ namespace SwCache
                 if(cachedContent==null)
                 {
                     cachedContent = persister.TryToGetFromPersistent(cacheRequest.key);
+                    if(cachedContent!=null)
+                    {
+                        AddToMemoryCache(cachedContent);
+                    }
                 }
 
                 if (cachedContent != null)
@@ -520,12 +523,7 @@ namespace SwCache
         private void Initialize(int port)
         {
             this._port = port;
-            this.PersistentMode = Convert.ToBoolean(ConfigurationManager.AppSettings["persistent"]);
-
-            if (this.PersistentMode)
-            {
-                this.cache = persister.GetAllCachedItems();
-            }
+            this.cache = persister.GetAllCachedItems();
 
             _serverThread = new Thread(this.Listen);
             _serverThread.Start();

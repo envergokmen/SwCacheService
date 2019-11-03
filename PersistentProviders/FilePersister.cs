@@ -12,9 +12,8 @@ namespace SwCache.PersistentProviders
     public class FilePersister : IPersistentProvider
     {
         private static object lockObj = new object();
-        public bool PersistentMode { get; set; } = false;
         private string CacheFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CachedFiles");
-       
+
         public FilePersister()
         {
             if (!Directory.Exists(this.CacheFolder)) { Directory.CreateDirectory(this.CacheFolder); }
@@ -22,7 +21,6 @@ namespace SwCache.PersistentProviders
 
         public void AddToPersistentCache(CacheRequestViewModel item)
         {
-            if (!PersistentMode) return;
 
             try
             {
@@ -42,26 +40,26 @@ namespace SwCache.PersistentProviders
 
         public void DeleteCacheBulk(string startsWith = null)
         {
-            if (!PersistentMode) return;
-
             try
             {
                 var files = new DirectoryInfo(this.CacheFolder).GetFiles();
                 if (startsWith != null) files = files.Where(c => c.Name.StartsWith(startsWith)).ToArray();
 
-                foreach (var fileItem in files)
+                lock (lockObj)
                 {
-                    var cachedFile = fileItem.FullName;
-
-                    if (File.Exists(cachedFile))
+                    foreach (var fileItem in files)
                     {
-                        lock (lockObj)
+                        var cachedFile = fileItem.FullName;
+
+                        if (File.Exists(cachedFile))
                         {
+
                             File.Delete(cachedFile);
                         }
 
                     }
                 }
+
             }
             finally
             {
@@ -98,7 +96,6 @@ namespace SwCache.PersistentProviders
                             else
                             {
                                 cachedItems.Add(cachedFileItem.key, cachedFileItem);
-                               // AddToMemoryCache(cachedFileItem);
                             }
                         }
                     }
@@ -115,8 +112,6 @@ namespace SwCache.PersistentProviders
 
         public void DeleteCache(string key)
         {
-            if (!PersistentMode) return;
-
             try
             {
                 var cachedFile = Path.Combine(this.CacheFolder, key + ".txt");
@@ -141,30 +136,27 @@ namespace SwCache.PersistentProviders
 
             try
             {
-                if (PersistentMode)
+
+                var cachedFile = Path.Combine(this.CacheFolder, key + ".txt");
+                if (File.Exists(cachedFile))
                 {
-                    var cachedFile = Path.Combine(this.CacheFolder, key + ".txt");
-                    if (File.Exists(cachedFile))
+                    cachedFileItem = JsonConvert.DeserializeObject<CacheRequestViewModel>(File.ReadAllText(cachedFile, Encoding.UTF8));
+
+                    if (cachedFileItem != null)
                     {
-                        cachedFileItem = JsonConvert.DeserializeObject<CacheRequestViewModel>(File.ReadAllText(cachedFile, Encoding.UTF8));
-
-                        if (cachedFileItem != null)
+                        if (cachedFileItem.expiresAt < DateTime.Now)
                         {
-                            if (cachedFileItem.expiresAt < DateTime.Now)
+                            lock (lockObj)
                             {
-                                lock (lockObj)
-                                {
-                                    File.Delete(cachedFile);
-                                }
-                            }
-                            else
-                            {
-                                //AddToMemoryCache(cachedFileItem);
-
+                                File.Delete(cachedFile);
                             }
                         }
-                    }
+                        else
+                        {
+                            //AddToMemoryCache(cachedFileItem);
 
+                        }
+                    }
                 }
             }
             finally
@@ -175,6 +167,6 @@ namespace SwCache.PersistentProviders
             return cachedFileItem;
         }
 
-       
+
     }
 }

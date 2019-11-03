@@ -14,8 +14,7 @@ namespace SwCache.PersistentProviders
             get
             {
                 string persistentType = ConfigurationManager.AppSettings["persisterType"];
-
-                IPersistentProvider persister;
+                IPersistentProvider persister = new NoPersistentProvider();
 
                 switch (persistentType)
                 {
