@@ -81,7 +81,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PersistentProviders\FilePersister.cs" />
-    <Compile Include="PersistentProviders\INoPersistentProvider.cs" />
+    <Compile Include="PersistentProviders\NoPersistentProvider.cs" />
     <Compile Include="PersistentProviders\PersistentFactory.cs" />
     <Compile Include="PersistentProviders\IPersistentProvider.cs" />
     <Compile Include="ProjectInstaller.cs">
