@@ -65,6 +65,7 @@ namespace SwCache
         private bool PersistentMode = false;
         private static object lockObj = new object();
         private string CacheFolder = "";
+        private Dictionary<string, CacheRequestViewModel> cache = new Dictionary<string, CacheRequestViewModel>();
 
         public int Port
         {
@@ -213,21 +214,22 @@ namespace SwCache
         }
 
         /// <summary>
-        /// Removes all cache keys
+        /// Flush Removes all cache keys
         /// </summary>
         /// <param name="context">Current HttpListener Context</param>
         private void RemoveAllCache(HttpListenerContext context)
         {
 
-            ObjectCache cache = MemoryCache.Default;
-
-            foreach (var item in MemoryCache.Default)
+            lock (lockObj)
             {
-                cache.Remove(item.Key);
+                cache = new Dictionary<string, CacheRequestViewModel>();
             }
+
+            Task.Run(() => GC.Collect() );
 
             DeleteFileCacheBulk();
             WriteStringToHttpResult("OK", context);
+
 
         }
 
@@ -249,9 +251,8 @@ namespace SwCache
 
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
-                    ObjectCache cache = MemoryCache.Default;
 
-                    foreach (var item in MemoryCache.Default)
+                    foreach (var item in cache.ToList())
                     {
                         if (item.Key.StartsWith(cacheForRemove.key))
                         {
@@ -283,8 +284,6 @@ namespace SwCache
 
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
-
-                    ObjectCache cache = MemoryCache.Default;
                     cache.Remove(cacheForRemove.key);
                     RemoveFileCache(cacheForRemove.key);
 
@@ -332,18 +331,17 @@ namespace SwCache
             }
         }
 
-        private static void AddToMemoryCache(CacheRequestViewModel cacheForTheSet)
+        private void AddToMemoryCache(CacheRequestViewModel cacheForTheSet)
         {
-            ObjectCache cache = MemoryCache.Default;
-            CacheItemPolicy policy = new CacheItemPolicy();
-            //cache.Remove(cacheForTheSet.key);
-
-            if (cacheForTheSet.expiresAt.HasValue)
+            lock (lockObj)
             {
-                policy.AbsoluteExpiration = cacheForTheSet.expiresAt.Value;
-            }
+                if (cache.ContainsKey(cacheForTheSet.key))
+                {
+                    cache.Remove(cacheForTheSet.key);
+                };
 
-            cache.Add(cacheForTheSet.key, cacheForTheSet.value, policy);
+                cache.Add(cacheForTheSet.key, cacheForTheSet);
+            }
         }
 
         public void AddToFileCache(CacheRequestViewModel item)
@@ -376,15 +374,14 @@ namespace SwCache
 
             if (cacheRequest != null && !String.IsNullOrWhiteSpace(cacheRequest.key))
             {
-                ObjectCache cache = MemoryCache.Default;
-                var cachedContent = cache.Get(cacheRequest.key);
+                var cachedContent = cache[cacheRequest.key];
 
                 //for persistent mode
                 TryToGetFromFileCache(cacheRequest, cachedContent);
 
                 if (cachedContent != null)
                 {
-                    WriteStringToHttpResult(cachedContent.ToString(), context);
+                    WriteStringToHttpResult(JsonConvert.SerializeObject(cachedContent), context);
                 }
             }
         }
@@ -543,11 +540,9 @@ namespace SwCache
         private void GetKeys(HttpListenerContext context)
         {
             string requestBody = GetBodyRequestBodyAsString(context);
-
-            ObjectCache cache = MemoryCache.Default;
-
             List<string> keys = new List<string>();
-            foreach (var item in MemoryCache.Default)
+
+            foreach (var item in cache)
             {
                 keys.Add(item.Key);
             }
@@ -561,12 +556,11 @@ namespace SwCache
         {
             string requestBody = GetBodyRequestBodyAsString(context);
 
-            ObjectCache cache = MemoryCache.Default;
 
             List<CacheRequestViewModel> keys = new List<CacheRequestViewModel>();
-            foreach (var item in MemoryCache.Default)
+            foreach (var item in cache)
             {
-                keys.Add(new CacheRequestViewModel { key = item.Key, value = Convert.ToString(item.Value) });
+                keys.Add(item.Value);
             }
 
             WriteStringToHttpResult(JsonConvert.SerializeObject(keys), context);
