@@ -229,7 +229,7 @@ namespace SwCache
             Task.Run(() => GC.Collect());
 
             persister.DeleteCacheBulk();
-            WriteStringToHttpResult("OK", context);
+            WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
 
         }
@@ -301,7 +301,7 @@ namespace SwCache
                 }
             }
 
-            WriteStringToHttpResult("OK", context);
+            WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
         }
 
@@ -326,7 +326,7 @@ namespace SwCache
                 }
             }
 
-            WriteStringToHttpResult("OK", context);
+            WriteStringToHttpResult("{\"result\":\"OK\"}", context);
         }
 
         /// <summary>
@@ -353,14 +353,14 @@ namespace SwCache
                         Task.Run(() => persister.AddToPersistentCache(cacheForTheSet));
                         Task.Run(() => AllocateMemory());
 
-                        WriteStringToHttpResult("OK", context);
+                        WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
 
                     }
                 }
                 catch (Exception)
                 {
-                    WriteStringToHttpResult("FAIL", context, HttpStatusCode.InternalServerError);
+                    WriteStringToHttpResult("{\"result\":\"FAIL\"}", context, HttpStatusCode.InternalServerError);
 
                 }
             }
@@ -493,7 +493,7 @@ namespace SwCache
                 {
                     Stream input = new FileStream(filename, FileMode.Open);
 
-                    context.Response.ContentType = "application/json";
+                    context.Response.ContentType = "text/html";
                     context.Response.ContentLength64 = input.Length;
 
                     byte[] buffer = new byte[1024 * 16];

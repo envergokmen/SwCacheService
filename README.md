@@ -54,3 +54,6 @@ It loads all the from /appdir/CachedFiles and adds all of the keys in memory aga
     <add key="persistent" value="false" />
   </appSettings>
 ```
+
+## Management UI -> /Manage
+You can view and delete cache items manually via Manager
