@@ -235,12 +235,12 @@ namespace SwCache
         }
 
         /// <summary>
-        /// Moves all keys to new dictionary
+        /// Moves all keys to new dictionary in order to free memory
         /// </summary>
         /// <param name="context">Current HttpListener Context</param>
         private void AllocateMemory()
         {
-            if (lastAllocationDate > DateTime.Now.AddMinutes(-1))
+            if (lastAllocationDate > DateTime.Now.AddMinutes(-5))
             {
                 return;
             }
