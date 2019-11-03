@@ -47,7 +47,8 @@ It is native .net solution fully compatible with windows, can be run as windows 
 
 ## Persistent Mode : check below for disk based persistent cache (false by default) . 
 This may affect the cache performance little bit, but it doesn't loose caches on computer or service restart.
-It loads all the from /appdir/CachedFiles and adds all of the keys in memory again. Persistent mode works with in memory (Not only disk based cache)
+It loads all the from /appdir/CachedFiles and adds all of the keys in memory again. Persistent mode works with in memory and provider based together. 
+If you set a persister provider below it will continue to use memory for performance purposes. Memory based caching can't be ignored totally)
 
 ```xml
   <appSettings>
