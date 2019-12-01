@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using SwCache.Nodes;
 using SwCache.PersistentProviders;
 using SwCache.ViewModels;
 using System;
@@ -68,6 +69,8 @@ namespace SwCache
         private Dictionary<string, CacheRequestViewModel> cache = new Dictionary<string, CacheRequestViewModel>();
         private DateTime lastAllocationDate = DateTime.Now;
         IPersistentProvider persister = new PersistentFactory().Persister;
+        List<ISwNodeClient> nodes = new NodeClientFactory().Nodes;
+
         public int Port
         {
             get { return _port; }
