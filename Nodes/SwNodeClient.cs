@@ -21,7 +21,6 @@ namespace SwCache.Nodes
             this.SwServer = serverSettings;
         }
 
-        private static SwCacheServer _swCacheServer = null;
         public static string BltCachePrefix = ConfigurationManager.AppSettings["CacheKeyPrefix"];
 
         public string Id => SwServer != null ? SwServer.Id : "";

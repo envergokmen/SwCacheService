@@ -225,6 +225,12 @@ namespace SwCache
         private void RemoveAllCache(HttpListenerContext context)
         {
 
+            string requestBody = GetBodyRequestBodyAsString(context);
+            CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
+
+            if (cacheForRemove.sourceNodeId != null && cacheForRemove.sourceNodeId == this.Id) return;
+            if (cacheForRemove.sourceNodeId == null) { cacheForRemove.sourceNodeId = this.Id; }
+
             lock (lockObj)
             {
                 cache = new Dictionary<string, CacheRequestViewModel>();
@@ -233,7 +239,7 @@ namespace SwCache
             Task.Run(() => GC.Collect());
 
             persister.DeleteCacheBulk();
-            //Task.Run(() => DeleteAllNodesCache());
+            Task.Run(() => DeleteAllNodesCache(cacheForRemove));
 
             WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
@@ -443,7 +449,7 @@ namespace SwCache
             foreach (var item in this.nodes)
             {
                 if (item.Id == cacheSource.sourceNodeId) { continue; }
-                item.ClearAllCache();
+                item.ClearAllCache(cacheForRemove);
             }
         }
 
