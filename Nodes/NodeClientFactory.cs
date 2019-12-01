@@ -30,8 +30,9 @@ namespace SwCache.Nodes
                 {
                     var Path = ConfigurationManager.AppSettings[item];
                     var Port = ConfigurationManager.AppSettings[item.Replace("path","port")];
+                    var Id = ConfigurationManager.AppSettings[item.Replace("path", "id")];
 
-                    var server = new SwCacheServer(Path, Port);
+                    var server = new SwCacheServer(Path, Port, Id);
                     var cacheClient = new SwNodeClient(server);
 
                     nodes.Add(cacheClient);

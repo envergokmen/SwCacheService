@@ -10,14 +10,16 @@ namespace SwCache.Nodes
 
     public class SwCacheServer
     {
-        public SwCacheServer(string url, string port)
+        public SwCacheServer(string url, string port, string id)
         {
             this.ServerUrl = url;
             this.ServerPort = port;
+            this.Id = id;
         }
 
         public string ServerUrl { get; set; }
         public string ServerPort { get; set; }
+        public string Id { get; set; }
 
         public string CombineRequestPath(string ServerPath = "")
         {

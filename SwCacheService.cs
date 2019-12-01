@@ -70,6 +70,7 @@ namespace SwCache
         private DateTime lastAllocationDate = DateTime.Now;
         IPersistentProvider persister = new PersistentFactory().Persister;
         List<ISwNodeClient> nodes = new NodeClientFactory().Nodes;
+        string Id = ConfigurationManager.AppSettings["id"];
 
         public int Port
         {
@@ -232,7 +233,7 @@ namespace SwCache
             Task.Run(() => GC.Collect());
 
             persister.DeleteCacheBulk();
-            Task.Run(() => DeleteAllNodesCache());
+            //Task.Run(() => DeleteAllNodesCache());
 
             WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
@@ -252,7 +253,7 @@ namespace SwCache
 
             lock (lockObj)
             {
-                var cache2 =  new Dictionary<string, CacheRequestViewModel>();
+                var cache2 = new Dictionary<string, CacheRequestViewModel>();
 
                 foreach (var item in cache)
                 {
@@ -300,7 +301,7 @@ namespace SwCache
                     }
 
                     Task.Run(() => AllocateMemory());
-                    Task.Run(() => DeleteFromNodeCacheStartsWith(cacheForRemove.key));
+                    Task.Run(() => DeleteFromNodeCacheStartsWith(cacheForRemove));
 
                     persister.DeleteCacheBulk(cacheForRemove.key);
 
@@ -325,13 +326,15 @@ namespace SwCache
                 string requestBody = GetBodyRequestBodyAsString(context);
                 CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
 
+                if (cacheForRemove.sourceNodeId != null && cacheForRemove.sourceNodeId == this.Id) return;
+                if (cacheForRemove.sourceNodeId == null) { cacheForRemove.sourceNodeId = this.Id; }
+
+
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
                     cache.Remove(cacheForRemove.key);
                     persister.DeleteCache(cacheForRemove.key);
-                    Task.Run(() => DeleteFromNodeCache(cacheForRemove.key));
-
-
+                    Task.Run(() => DeleteFromNodeCache(cacheForRemove));
                 }
             }
 
@@ -354,6 +357,9 @@ namespace SwCache
 
                     string requestBody = GetBodyRequestBodyAsString(context);
                     CacheRequestViewModel cacheForTheSet = GetAsCacheRequest(requestBody);
+
+                    if (cacheForTheSet.sourceNodeId != null && cacheForTheSet.sourceNodeId == this.Id) return;
+                    if (cacheForTheSet.sourceNodeId == null) { cacheForTheSet.sourceNodeId = this.Id; }
 
                     if (cacheForTheSet != null && !String.IsNullOrWhiteSpace(cacheForTheSet.key) && !String.IsNullOrWhiteSpace(cacheForTheSet.key))
                     {
@@ -394,10 +400,14 @@ namespace SwCache
 
         private void AddToNodesCache(CacheRequestViewModel cacheForTheSet)
         {
-            foreach (var item in this.nodes)
+
+            foreach (var item in this.nodes.Where(c => c.Id != this.Id))
             {
-                if(cacheForTheSet.expiresAt.HasValue)
+                if (item.Id == cacheForTheSet.sourceNodeId) { continue; }
+
+                if (cacheForTheSet.expiresAt.HasValue)
                 {
+
                     item.Set<string>(cacheForTheSet.key, cacheForTheSet.value, cacheForTheSet.expiresAt.Value);
                 }
                 else
@@ -406,31 +416,33 @@ namespace SwCache
                 }
             }
         }
-        private void DeleteFromNodeCache(string key)
+
+        private void DeleteFromNodeCache(CacheRequestViewModel cacheToRemove)
         {
             foreach (var item in this.nodes)
             {
-                 
-                item.Remove(key);
-                
-            }
-        }
+                if (item.Id == cacheToRemove.sourceNodeId) { continue; }
 
-        private void DeleteFromNodeCacheStartsWith(string key)
-        {
-            foreach (var item in this.nodes)
-            {
-
-                item.RemoveKeyStartsWith(key);
+                item.Remove(cacheToRemove.key);
 
             }
         }
 
-
-        private void DeleteAllNodesCache()
+        private void DeleteFromNodeCacheStartsWith(CacheRequestViewModel cacheToRemove)
         {
             foreach (var item in this.nodes)
             {
+                if (item.Id == cacheToRemove.sourceNodeId) { continue; }
+                item.RemoveKeyStartsWith(cacheToRemove.key);
+            }
+        }
+
+
+        private void DeleteAllNodesCache(CacheRequestViewModel cacheSource)
+        {
+            foreach (var item in this.nodes)
+            {
+                if (item.Id == cacheSource.sourceNodeId) { continue; }
                 item.ClearAllCache();
             }
         }
@@ -461,10 +473,10 @@ namespace SwCache
                 }
 
                 //for persistent mode
-                if(cachedContent==null)
+                if (cachedContent == null)
                 {
                     cachedContent = persister.TryToGetFromPersistent(cacheRequest.key);
-                    if(cachedContent!=null)
+                    if (cachedContent != null)
                     {
                         AddToMemoryCache(cachedContent);
                     }
@@ -476,7 +488,7 @@ namespace SwCache
                 }
             }
         }
-         
+
 
         /// <summary>
         /// Process Http Request

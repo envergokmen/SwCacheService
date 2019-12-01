@@ -8,6 +8,7 @@ namespace SwCache.Nodes
 {
     public interface ISwNodeClient
     {
+        string Id { get; }
         T Get<T>(string key) where T : class;
         void Set<T>(string key, T data);
         void Set<T>(string key, T data, DateTime expireDate);

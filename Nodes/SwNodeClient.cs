@@ -24,6 +24,8 @@ namespace SwCache.Nodes
         private static SwCacheServer _swCacheServer = null;
         public static string BltCachePrefix = ConfigurationManager.AppSettings["CacheKeyPrefix"];
 
+        public string Id => SwServer != null ? SwServer.Id : "";
+
         public SwCacheServer SwServer { get; set; }
          
         private SwCacheClientRequest DoHttpRequest(SwCacheClientRequest swRequest)
