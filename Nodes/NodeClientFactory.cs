@@ -23,10 +23,10 @@ namespace SwCache.Nodes
 
                 string[] nodeSettings = ConfigurationManager.AppSettings.AllKeys
                              .Where(key => key.StartsWith("node"))
-                             .Select(key => ConfigurationManager.AppSettings[key])
+                             .Select(key => key)
                              .ToArray();
 
-                foreach (var item in nodeSettings.Where(c=>c.StartsWith("path")))
+                foreach (var item in nodeSettings.Where(c=>c.EndsWith("path")))
                 {
                     var Path = ConfigurationManager.AppSettings[item];
                     var Port = ConfigurationManager.AppSettings[item.Replace("path","port")];

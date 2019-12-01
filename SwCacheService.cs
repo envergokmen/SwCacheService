@@ -232,6 +232,8 @@ namespace SwCache
             Task.Run(() => GC.Collect());
 
             persister.DeleteCacheBulk();
+            Task.Run(() => DeleteAllNodesCache());
+
             WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
 
@@ -298,8 +300,9 @@ namespace SwCache
                     }
 
                     Task.Run(() => AllocateMemory());
+                    Task.Run(() => DeleteFromNodeCacheStartsWith(cacheForRemove.key));
 
-                   persister.DeleteCacheBulk(cacheForRemove.key);
+                    persister.DeleteCacheBulk(cacheForRemove.key);
 
                 }
             }
@@ -307,6 +310,7 @@ namespace SwCache
             WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
         }
+
 
         /// <summary>
         /// Remove only item which key's equal to CacheKey
@@ -325,6 +329,8 @@ namespace SwCache
                 {
                     cache.Remove(cacheForRemove.key);
                     persister.DeleteCache(cacheForRemove.key);
+                    Task.Run(() => DeleteFromNodeCache(cacheForRemove.key));
+
 
                 }
             }
@@ -354,7 +360,11 @@ namespace SwCache
                         AddToMemoryCache(cacheForTheSet);
 
                         Task.Run(() => persister.AddToPersistentCache(cacheForTheSet));
+                        Task.Run(() => AddToNodesCache(cacheForTheSet));
+
                         Task.Run(() => AllocateMemory());
+
+
 
                         WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
@@ -382,6 +392,48 @@ namespace SwCache
             }
         }
 
+        private void AddToNodesCache(CacheRequestViewModel cacheForTheSet)
+        {
+            foreach (var item in this.nodes)
+            {
+                if(cacheForTheSet.expiresAt.HasValue)
+                {
+                    item.Set<string>(cacheForTheSet.key, cacheForTheSet.value, cacheForTheSet.expiresAt.Value);
+                }
+                else
+                {
+                    item.Set<string>(cacheForTheSet.key, cacheForTheSet.value);
+                }
+            }
+        }
+        private void DeleteFromNodeCache(string key)
+        {
+            foreach (var item in this.nodes)
+            {
+                 
+                item.Remove(key);
+                
+            }
+        }
+
+        private void DeleteFromNodeCacheStartsWith(string key)
+        {
+            foreach (var item in this.nodes)
+            {
+
+                item.RemoveKeyStartsWith(key);
+
+            }
+        }
+
+
+        private void DeleteAllNodesCache()
+        {
+            foreach (var item in this.nodes)
+            {
+                item.ClearAllCache();
+            }
+        }
 
         /// <summary>
         /// Get Cached Item with CacheKey

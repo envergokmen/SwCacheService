@@ -32,6 +32,8 @@ namespace SwCache.Nodes
             {
                 string url = SwServer.CombineRequestPath(swRequest.RequestUrl);
 
+                if (!url.Contains("http://")) url = "http://" + url;
+
                 HttpWebRequest httpWebRequest = (HttpWebRequest)WebRequest.Create(url);
 
                 httpWebRequest.Method = swRequest.RequestMethod.ToString();
