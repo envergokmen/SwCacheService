@@ -134,17 +134,15 @@ namespace SwCache.Nodes
 
         public void Set<T>(string key, T value, string[] fileDependencies = null)
         {
-            string serializedObject = JsonConvert.SerializeObject(value);
-
-            SwCacheClientRequest request = GetRequestModel(key, serializedObject, null);
+            
+            SwCacheClientRequest request = GetRequestModel(key, value.ToString(), null);
             DoHttpRequest(request);
         }
 
         public void Set<T>(string key, T value, DateTime expireDate)
         {
-            string serializedObject = JsonConvert.SerializeObject(value);
-
-            SwCacheClientRequest request = GetRequestModel(key, serializedObject, expireDate);
+           
+            SwCacheClientRequest request = GetRequestModel(key, value.ToString(), expireDate);
             request.RequestUrl = "/SetCache";
 
             DoHttpRequest(request);
@@ -153,9 +151,7 @@ namespace SwCache.Nodes
 
         public void Set<T>(string key, T value)
         {
-            string serializedObject = JsonConvert.SerializeObject(value);
-
-            SwCacheClientRequest request = GetRequestModel(key, serializedObject);
+            SwCacheClientRequest request = GetRequestModel(key, value.ToString());
             request.RequestUrl = "/SetCache";
 
             DoHttpRequest(request);
