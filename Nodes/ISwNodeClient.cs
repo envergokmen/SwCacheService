@@ -10,12 +10,11 @@ namespace SwCache.Nodes
     {
         string Id { get; }
         T Get<T>(string key) where T : class;
-        void Set<T>(string key, T data);
-        void Set<T>(string key, T data, DateTime expireDate);
-        void Set<T>(string key, T data, DateTime expireDate, string[] fileDependencies = null);
-        void Remove(string key);
-        void ClearAllCache();
+        void Set<T>(string key, T data, string fromNode = null);
+        void Set<T>(string key, T data, DateTime expireDate, string[] fileDependencies = null, string fromNode = null);
+        void Remove(string key, string fromNode = null);
+        void ClearAllCache(string fromNode = null);
         List<string> GetAllKeys();
-        void RemoveKeyStartsWith(string pattern);
+        void RemoveKeyStartsWith(string pattern, string fromNode = null);
     }
 }

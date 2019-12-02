@@ -170,6 +170,32 @@ namespace SwCache
             return requestBody;
         }
 
+
+        // Displays the header information that accompanied a request.
+        private Dictionary<string, string> GetHeaders(HttpListenerRequest request)
+        {
+            Dictionary<string, string> result = new Dictionary<string, string>();
+
+            System.Collections.Specialized.NameValueCollection headers = request.Headers;
+
+            foreach (string key in headers.AllKeys)
+            {
+                string[] values = headers.GetValues(key);
+
+                if (values.Length > 0)
+                {
+                    if (!result.ContainsKey(key))
+                    {
+                        result.Add(key, values[0]);
+
+                    }
+
+                }
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// Parse Request Params and Convert To CacheViewModel Object
         /// </summary>
@@ -228,8 +254,8 @@ namespace SwCache
             string requestBody = GetBodyRequestBodyAsString(context);
             CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
 
-            if (cacheForRemove.sourceNodeId != null && cacheForRemove.sourceNodeId == this.Id) return;
-            if (cacheForRemove.sourceNodeId == null) { cacheForRemove.sourceNodeId = this.Id; }
+            string source = GetSoureHeaderParam(context);
+            if (source != null && source == this.Id) return;
 
             lock (lockObj)
             {
@@ -239,7 +265,12 @@ namespace SwCache
             Task.Run(() => GC.Collect());
 
             persister.DeleteCacheBulk();
-            Task.Run(() => DeleteAllNodesCache(cacheForRemove));
+
+            if (source == null)
+            {
+                cacheForRemove.sourceNodeId = this.Id;
+                Task.Run(() => DeleteAllNodesCache(cacheForRemove));
+            }
 
             WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
@@ -291,6 +322,9 @@ namespace SwCache
                 string requestBody = GetBodyRequestBodyAsString(context);
                 CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
 
+                string source = GetSoureHeaderParam(context);
+                if (source != null && source == this.Id) return;
+
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
                     lock (lockObj)
@@ -307,7 +341,12 @@ namespace SwCache
                     }
 
                     Task.Run(() => AllocateMemory());
-                    Task.Run(() => DeleteFromNodeCacheStartsWith(cacheForRemove));
+
+                    if (source == null)
+                    {
+                        cacheForRemove.sourceNodeId = this.Id;
+                        Task.Run(() => DeleteFromNodeCacheStartsWith(cacheForRemove));
+                    }
 
                     persister.DeleteCacheBulk(cacheForRemove.key);
 
@@ -332,15 +371,22 @@ namespace SwCache
                 string requestBody = GetBodyRequestBodyAsString(context);
                 CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
 
-                if (cacheForRemove.sourceNodeId != null && cacheForRemove.sourceNodeId == this.Id) return;
-                if (cacheForRemove.sourceNodeId == null) { cacheForRemove.sourceNodeId = this.Id; }
+                string source = GetSoureHeaderParam(context);
+                if (source != null && source == this.Id) return;
 
 
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
                     cache.Remove(cacheForRemove.key);
                     persister.DeleteCache(cacheForRemove.key);
-                    Task.Run(() => DeleteFromNodeCache(cacheForRemove));
+
+                    if (source == null)
+                    {
+                        cacheForRemove.sourceNodeId = this.Id;
+                        Task.Run(() => DeleteFromNodeCache(cacheForRemove));
+                    }
+
+
                 }
             }
 
@@ -359,20 +405,24 @@ namespace SwCache
             {
                 try
                 {
-
+                    string source = GetSoureHeaderParam(context);
 
                     string requestBody = GetBodyRequestBodyAsString(context);
                     CacheRequestViewModel cacheForTheSet = GetAsCacheRequest(requestBody);
 
-                    if (cacheForTheSet.sourceNodeId != null && cacheForTheSet.sourceNodeId == this.Id) return;
-                    if (cacheForTheSet.sourceNodeId == null) { cacheForTheSet.sourceNodeId = this.Id; }
+                    if (source != null && source == this.Id) return;
 
                     if (cacheForTheSet != null && !String.IsNullOrWhiteSpace(cacheForTheSet.key) && !String.IsNullOrWhiteSpace(cacheForTheSet.key))
                     {
                         AddToMemoryCache(cacheForTheSet);
 
                         Task.Run(() => persister.AddToPersistentCache(cacheForTheSet));
-                        Task.Run(() => AddToNodesCache(cacheForTheSet));
+
+                        if (source == null)
+                        {
+                            cacheForTheSet.sourceNodeId = this.Id;
+                            Task.Run(() => AddToNodesCache(cacheForTheSet));
+                        }
 
                         Task.Run(() => AllocateMemory());
 
@@ -391,6 +441,14 @@ namespace SwCache
             }
         }
 
+        private string GetSoureHeaderParam(HttpListenerContext context)
+        {
+            var headers = GetHeaders(context.Request);
+            string source = null;
+            headers.TryGetValue("source", out source);
+            return source;
+        }
+
         private void AddToMemoryCache(CacheRequestViewModel cacheForTheSet)
         {
             lock (lockObj)
@@ -407,49 +465,49 @@ namespace SwCache
         private void AddToNodesCache(CacheRequestViewModel cacheForTheSet)
         {
 
-            foreach (var item in this.nodes.Where(c => c.Id != this.Id))
+            foreach (var node in this.nodes.Where(c => c.Id != this.Id))
             {
-                if (item.Id == cacheForTheSet.sourceNodeId) { continue; }
+                if (node.Id == cacheForTheSet.sourceNodeId) { continue; }
 
                 if (cacheForTheSet.expiresAt.HasValue)
                 {
-
-                    item.Set<string>(cacheForTheSet.key, cacheForTheSet.value, cacheForTheSet.expiresAt.Value);
+                    node.Set<string>(cacheForTheSet.key, cacheForTheSet.value, cacheForTheSet.expiresAt.Value, fromNode: cacheForTheSet.sourceNodeId);
                 }
                 else
                 {
-                    item.Set<string>(cacheForTheSet.key, cacheForTheSet.value);
+                    node.Set<string>(cacheForTheSet.key, cacheForTheSet.value, fromNode: cacheForTheSet.sourceNodeId);
                 }
             }
         }
 
         private void DeleteFromNodeCache(CacheRequestViewModel cacheToRemove)
         {
-            foreach (var item in this.nodes)
+            foreach (var node in this.nodes)
             {
-                if (item.Id == cacheToRemove.sourceNodeId) { continue; }
+                if (node.Id == cacheToRemove.sourceNodeId) { continue; }
 
-                item.Remove(cacheToRemove.key);
+                node.Remove(cacheToRemove.key, cacheToRemove.sourceNodeId);
 
             }
         }
 
         private void DeleteFromNodeCacheStartsWith(CacheRequestViewModel cacheToRemove)
         {
-            foreach (var item in this.nodes)
+            foreach (var node in this.nodes)
             {
-                if (item.Id == cacheToRemove.sourceNodeId) { continue; }
-                item.RemoveKeyStartsWith(cacheToRemove.key);
+                if (node.Id == cacheToRemove.sourceNodeId) { continue; }
+                node.RemoveKeyStartsWith(cacheToRemove.key, cacheToRemove.sourceNodeId);
             }
         }
 
 
         private void DeleteAllNodesCache(CacheRequestViewModel cacheSource)
         {
-            foreach (var item in this.nodes)
+
+            foreach (var node in this.nodes)
             {
-                if (item.Id == cacheSource.sourceNodeId) { continue; }
-                item.ClearAllCache(cacheForRemove);
+                if (node.Id == cacheSource.sourceNodeId) { continue; }
+                node.ClearAllCache(cacheSource.sourceNodeId);
             }
         }
 

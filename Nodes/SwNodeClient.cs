@@ -11,8 +11,6 @@ using System.Web;
 
 namespace SwCache.Nodes
 {
-  
-
 
     public class SwNodeClient : ISwNodeClient
     {
@@ -26,7 +24,7 @@ namespace SwCache.Nodes
         public string Id => SwServer != null ? SwServer.Id : "";
 
         public SwCacheServer SwServer { get; set; }
-         
+
         private SwCacheClientRequest DoHttpRequest(SwCacheClientRequest swRequest)
         {
             try
@@ -41,6 +39,14 @@ namespace SwCache.Nodes
                 httpWebRequest.KeepAlive = true;
                 httpWebRequest.Credentials = CredentialCache.DefaultCredentials;
                 httpWebRequest.AllowAutoRedirect = true;
+
+                if(swRequest.RequestHeaders!=null && swRequest.RequestHeaders.Any())
+                {
+                    foreach (var item in swRequest.RequestHeaders)
+                    {
+                        httpWebRequest.Headers.Add(item.Name, item.Value);
+                    }
+                }
 
                 if (swRequest.RequestMethod == HttpMethod.POST)
                 {
@@ -77,7 +83,7 @@ namespace SwCache.Nodes
                 {
                     foreach (var key in webResponse.Headers.AllKeys)
                     {
-                       
+
                     }
                 }
 
@@ -119,44 +125,42 @@ namespace SwCache.Nodes
             return swRequest;
         }
 
-       
-        public SwCacheClientRequest GetRequestModel(string CacheKey, string CacheValue, DateTime? CacheEndDate = null)
+
+        public SwCacheClientRequest GetRequestModel(string CacheKey, string CacheValue, DateTime? CacheEndDate = null, string fromNode = null)
         {
             SwCacheClientRequest request = new SwCacheClientRequest();
 
             string cacheDate = (CacheEndDate != null) ? Convert.ToDateTime(CacheEndDate).ToString() : DateTime.Now.AddYears(1).ToString();
-
             request.RequestMethod = HttpMethod.POST;
-
             request.RequestBody = new CacheRequestViewModel { key = CacheKey, value = CacheValue, expiresAt = CacheEndDate };
+
+            if (fromNode != null)
+            {
+                request.RequestHeaders.Add(new SwParam { Name = "source", Value = fromNode });
+            }
 
             return request;
         }
 
-        public void Set<T>(string key, T value, string[] fileDependencies = null)
+        public void Set<T>(string key, T value, string[] fileDependencies = null, string fromNode = null)
         {
-            
-            SwCacheClientRequest request = GetRequestModel(key, value.ToString(), null);
+            SwCacheClientRequest request = GetRequestModel(key, value.ToString(), null, fromNode);
             DoHttpRequest(request);
         }
 
-        public void Set<T>(string key, T value, DateTime expireDate)
+        public void Set<T>(string key, T value, DateTime expireDate, string sourceHeader=null)
         {
-           
-            SwCacheClientRequest request = GetRequestModel(key, value.ToString(), expireDate);
+            SwCacheClientRequest request = GetRequestModel(key, value.ToString(), expireDate, sourceHeader);
             request.RequestUrl = "/SetCache";
-
             DoHttpRequest(request);
 
         }
 
-        public void Set<T>(string key, T value)
+        public void Set<T>(string key, T value, string sourceHeader = null)
         {
-            SwCacheClientRequest request = GetRequestModel(key, value.ToString());
+            SwCacheClientRequest request = GetRequestModel(key, value.ToString(), null, sourceHeader);
             request.RequestUrl = "/SetCache";
-
             DoHttpRequest(request);
-
         }
 
         public T Get<T>(string key) where T : class
@@ -187,19 +191,17 @@ namespace SwCache.Nodes
             }
         }
 
-        public void Remove(string key)
+        public void Remove(string key, string sourceHeader = null)
         {
-            SwCacheClientRequest request = GetRequestModel(key, "");
+            SwCacheClientRequest request = GetRequestModel(key, "", null, sourceHeader);
             request.RequestUrl = "/RemoveCache";
-
             var response = DoHttpRequest(request);
 
         }
 
-
-        public void RemoveKeyStartsWith(string StartWith)
+        public void RemoveKeyStartsWith(string StartWith, string sourceHeader = null)
         {
-            SwCacheClientRequest request = GetRequestModel(StartWith, "");
+            SwCacheClientRequest request = GetRequestModel(StartWith, "", null, sourceHeader);
             request.RequestUrl = "/RemoveCacheKeyStarsWith";
             DoHttpRequest(request);
         }
@@ -220,14 +222,14 @@ namespace SwCache.Nodes
             }
         }
 
-        public void Set<T>(string key, T value, DateTime expireDate, string[] fileDependencies = null)
+        public void Set<T>(string key, T value, DateTime expireDate, string[] fileDependencies = null, string sourceHeader = null)
         {
-            Set(key, value, expireDate);
+            Set(key, value, expireDate, sourceHeader);
         }
 
-        public void ClearAllCache()
+        public void ClearAllCache(string sourceHeader = null)
         {
-            SwCacheClientRequest request = new SwCacheClientRequest();
+            SwCacheClientRequest request = GetRequestModel("", "", null, sourceHeader);
             request.RequestUrl = "/Flush";
             DoHttpRequest(request);
         }
