@@ -81,8 +81,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Nodes\INodeSyncronizer.cs" />
     <Compile Include="Nodes\Models\NodeModels.cs" />
     <Compile Include="Nodes\NodeClientFactory.cs" />
+    <Compile Include="Nodes\NodeSyncronizer.cs" />
     <Compile Include="Nodes\SwNodeClient.cs" />
     <Compile Include="Nodes\ISwNodeClient.cs" />
     <Compile Include="PersistentProviders\FilePersister.cs" />

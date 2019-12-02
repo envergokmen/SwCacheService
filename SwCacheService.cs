@@ -52,13 +52,13 @@ namespace SwCache
 
         protected override void OnStart(string[] args)
         {
-            eventLog1.WriteEntry("Oley Sw Cachce servisi başladı http server");
+            eventLog1.WriteEntry("SwCache OutPut Distributed Cache service as started...");
         }
 
         protected override void OnStop()
         {
 
-            eventLog1.WriteEntry("Aaah Sw Cachce servisi durdu http server");
+            eventLog1.WriteEntry("SwCache OutPut Distributed Cache service as stopped...");
         }
 
         private Thread _serverThread;
@@ -69,8 +69,9 @@ namespace SwCache
         private Dictionary<string, CacheRequestViewModel> cache = new Dictionary<string, CacheRequestViewModel>();
         private DateTime lastAllocationDate = DateTime.Now;
         IPersistentProvider persister = new PersistentFactory().Persister;
-        List<ISwNodeClient> nodes = new NodeClientFactory().Nodes;
+        //List<ISwNodeClient> nodes = new NodeClientFactory().Nodes;
         string Id = ConfigurationManager.AppSettings["id"];
+        INodeSyncronizer nodeSynconizer = new NodeSyncronizer();
 
         public int Port
         {
@@ -224,6 +225,7 @@ namespace SwCache
                 context.Response.ContentLength64 = input.Length;
                 context.Response.AddHeader("Date", DateTime.Now.ToString("r"));
                 context.Response.AddHeader("Last-Modified", System.IO.File.GetLastWriteTime(path).ToString("r"));
+                context.Response.AddHeader("NodeId", this.Id);
 
 
                 byte[] buffer = new byte[1024 * 16];
@@ -263,14 +265,10 @@ namespace SwCache
             }
 
             Task.Run(() => GC.Collect());
-
             persister.DeleteCacheBulk();
 
-            if (source == null)
-            {
-                cacheForRemove.sourceNodeId = this.Id;
-                Task.Run(() => DeleteAllNodesCache(cacheForRemove));
-            }
+            Task.Run(() => nodeSynconizer.DeleteFromAllNodes(cacheForRemove, source));
+
 
             WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
@@ -341,12 +339,7 @@ namespace SwCache
                     }
 
                     Task.Run(() => AllocateMemory());
-
-                    if (source == null)
-                    {
-                        cacheForRemove.sourceNodeId = this.Id;
-                        Task.Run(() => DeleteFromNodeCacheStartsWith(cacheForRemove));
-                    }
+                    Task.Run(() => nodeSynconizer.DeleteFromNodesStartsWith(cacheForRemove, source));
 
                     persister.DeleteCacheBulk(cacheForRemove.key);
 
@@ -379,13 +372,7 @@ namespace SwCache
                 {
                     cache.Remove(cacheForRemove.key);
                     persister.DeleteCache(cacheForRemove.key);
-
-                    if (source == null)
-                    {
-                        cacheForRemove.sourceNodeId = this.Id;
-                        Task.Run(() => DeleteFromNodeCache(cacheForRemove));
-                    }
-
+                    nodeSynconizer.DeleteFromNodes(cacheForRemove, source);
 
                 }
             }
@@ -417,16 +404,8 @@ namespace SwCache
                         AddToMemoryCache(cacheForTheSet);
 
                         Task.Run(() => persister.AddToPersistentCache(cacheForTheSet));
-
-                        if (source == null)
-                        {
-                            cacheForTheSet.sourceNodeId = this.Id;
-                            Task.Run(() => AddToNodesCache(cacheForTheSet));
-                        }
-
+                        Task.Run(() => nodeSynconizer.AddToNodes(cacheForTheSet, source));
                         Task.Run(() => AllocateMemory());
-
-
 
                         WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
@@ -462,54 +441,9 @@ namespace SwCache
             }
         }
 
-        private void AddToNodesCache(CacheRequestViewModel cacheForTheSet)
-        {
-
-            foreach (var node in this.nodes.Where(c => c.Id != this.Id))
-            {
-                if (node.Id == cacheForTheSet.sourceNodeId) { continue; }
-
-                if (cacheForTheSet.expiresAt.HasValue)
-                {
-                    node.Set<string>(cacheForTheSet.key, cacheForTheSet.value, cacheForTheSet.expiresAt.Value, fromNode: cacheForTheSet.sourceNodeId);
-                }
-                else
-                {
-                    node.Set<string>(cacheForTheSet.key, cacheForTheSet.value, fromNode: cacheForTheSet.sourceNodeId);
-                }
-            }
-        }
-
-        private void DeleteFromNodeCache(CacheRequestViewModel cacheToRemove)
-        {
-            foreach (var node in this.nodes)
-            {
-                if (node.Id == cacheToRemove.sourceNodeId) { continue; }
-
-                node.Remove(cacheToRemove.key, cacheToRemove.sourceNodeId);
-
-            }
-        }
-
-        private void DeleteFromNodeCacheStartsWith(CacheRequestViewModel cacheToRemove)
-        {
-            foreach (var node in this.nodes)
-            {
-                if (node.Id == cacheToRemove.sourceNodeId) { continue; }
-                node.RemoveKeyStartsWith(cacheToRemove.key, cacheToRemove.sourceNodeId);
-            }
-        }
 
 
-        private void DeleteAllNodesCache(CacheRequestViewModel cacheSource)
-        {
 
-            foreach (var node in this.nodes)
-            {
-                if (node.Id == cacheSource.sourceNodeId) { continue; }
-                node.ClearAllCache(cacheSource.sourceNodeId);
-            }
-        }
 
         /// <summary>
         /// Get Cached Item with CacheKey

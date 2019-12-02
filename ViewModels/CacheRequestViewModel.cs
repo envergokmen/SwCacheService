@@ -13,7 +13,6 @@ namespace SwCache.ViewModels
         public string key { get; set; }
         public string value { get; set; }
         public DateTime? expiresAt { get; set; }
-        public string sourceNodeId { get; set; }
 
     }
 }
