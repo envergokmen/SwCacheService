@@ -63,9 +63,14 @@ You can have fully syncronized cache server by specifying nodes, date will be sy
 ```xml
   <appSettings>
     <add key="id" value="master" />  <!--each node should have unique Id 'master' text doesn't matter -->
+	  
     <add key="node1path" value="localhost" />
     <add key="node1port" value="8181" />
-    <add key="node1id" value="master" />
+    <add key="node1id" value="node1" />
+	  
+    <add key="node2path" value="localhost" />
+    <add key="node2port" value="8282" />
+    <add key="node2id" value="node2" />
   </appSettings>
 ```
 
