@@ -40,7 +40,7 @@
             // serviceInstaller1
             // 
             this.serviceInstaller1.Description = "Simple OutProc Service";
-            this.serviceInstaller1.DisplayName = "Sorsware Cache Service";
+            this.serviceInstaller1.DisplayName = "Sw Cache Service";
             this.serviceInstaller1.ServiceName = "SwCacheService";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 

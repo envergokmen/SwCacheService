@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using SwCache.Nodes;
 using SwCache.PersistentProviders;
 using SwCache.ViewModels;
 using System;
@@ -51,13 +52,13 @@ namespace SwCache
 
         protected override void OnStart(string[] args)
         {
-            eventLog1.WriteEntry("Oley Sw Cachce servisi başladı http server");
+            eventLog1.WriteEntry("SwCache OutPut Distributed Cache service as started...");
         }
 
         protected override void OnStop()
         {
 
-            eventLog1.WriteEntry("Aaah Sw Cachce servisi durdu http server");
+            eventLog1.WriteEntry("SwCache OutPut Distributed Cache service as stopped...");
         }
 
         private Thread _serverThread;
@@ -68,6 +69,10 @@ namespace SwCache
         private Dictionary<string, CacheRequestViewModel> cache = new Dictionary<string, CacheRequestViewModel>();
         private DateTime lastAllocationDate = DateTime.Now;
         IPersistentProvider persister = new PersistentFactory().Persister;
+        //List<ISwNodeClient> nodes = new NodeClientFactory().Nodes;
+        string Id = ConfigurationManager.AppSettings["id"];
+        INodeSyncronizer nodeSynconizer = new NodeSyncronizer();
+
         public int Port
         {
             get { return _port; }
@@ -166,6 +171,32 @@ namespace SwCache
             return requestBody;
         }
 
+
+        // Displays the header information that accompanied a request.
+        private Dictionary<string, string> GetHeaders(HttpListenerRequest request)
+        {
+            Dictionary<string, string> result = new Dictionary<string, string>();
+
+            System.Collections.Specialized.NameValueCollection headers = request.Headers;
+
+            foreach (string key in headers.AllKeys)
+            {
+                string[] values = headers.GetValues(key);
+
+                if (values.Length > 0)
+                {
+                    if (!result.ContainsKey(key))
+                    {
+                        result.Add(key, values[0]);
+
+                    }
+
+                }
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// Parse Request Params and Convert To CacheViewModel Object
         /// </summary>
@@ -194,6 +225,7 @@ namespace SwCache
                 context.Response.ContentLength64 = input.Length;
                 context.Response.AddHeader("Date", DateTime.Now.ToString("r"));
                 context.Response.AddHeader("Last-Modified", System.IO.File.GetLastWriteTime(path).ToString("r"));
+                context.Response.AddHeader("NodeId", this.Id);
 
 
                 byte[] buffer = new byte[1024 * 16];
@@ -221,14 +253,23 @@ namespace SwCache
         private void RemoveAllCache(HttpListenerContext context)
         {
 
+            string requestBody = GetBodyRequestBodyAsString(context);
+            CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
+
+            string source = GetSoureHeaderParam(context);
+            if (source != null && source == this.Id) return;
+
             lock (lockObj)
             {
                 cache = new Dictionary<string, CacheRequestViewModel>();
             }
 
             Task.Run(() => GC.Collect());
-
             persister.DeleteCacheBulk();
+
+            Task.Run(() => nodeSynconizer.DeleteFromAllNodes(cacheForRemove, source));
+
+
             WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
 
@@ -247,7 +288,7 @@ namespace SwCache
 
             lock (lockObj)
             {
-                var cache2 =  new Dictionary<string, CacheRequestViewModel>();
+                var cache2 = new Dictionary<string, CacheRequestViewModel>();
 
                 foreach (var item in cache)
                 {
@@ -279,6 +320,9 @@ namespace SwCache
                 string requestBody = GetBodyRequestBodyAsString(context);
                 CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
 
+                string source = GetSoureHeaderParam(context);
+                if (source != null && source == this.Id) return;
+
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
                     lock (lockObj)
@@ -295,8 +339,9 @@ namespace SwCache
                     }
 
                     Task.Run(() => AllocateMemory());
+                    Task.Run(() => nodeSynconizer.DeleteFromNodesStartsWith(cacheForRemove, source));
 
-                   persister.DeleteCacheBulk(cacheForRemove.key);
+                    persister.DeleteCacheBulk(cacheForRemove.key);
 
                 }
             }
@@ -304,6 +349,7 @@ namespace SwCache
             WriteStringToHttpResult("{\"result\":\"OK\"}", context);
 
         }
+
 
         /// <summary>
         /// Remove only item which key's equal to CacheKey
@@ -318,10 +364,15 @@ namespace SwCache
                 string requestBody = GetBodyRequestBodyAsString(context);
                 CacheRequestViewModel cacheForRemove = GetAsCacheRequest(requestBody);
 
+                string source = GetSoureHeaderParam(context);
+                if (source != null && source == this.Id) return;
+
+
                 if (cacheForRemove != null && !String.IsNullOrWhiteSpace(cacheForRemove.key))
                 {
                     cache.Remove(cacheForRemove.key);
                     persister.DeleteCache(cacheForRemove.key);
+                    nodeSynconizer.DeleteFromNodes(cacheForRemove, source);
 
                 }
             }
@@ -341,16 +392,19 @@ namespace SwCache
             {
                 try
                 {
-
+                    string source = GetSoureHeaderParam(context);
 
                     string requestBody = GetBodyRequestBodyAsString(context);
                     CacheRequestViewModel cacheForTheSet = GetAsCacheRequest(requestBody);
+
+                    if (source != null && source == this.Id) return;
 
                     if (cacheForTheSet != null && !String.IsNullOrWhiteSpace(cacheForTheSet.key) && !String.IsNullOrWhiteSpace(cacheForTheSet.key))
                     {
                         AddToMemoryCache(cacheForTheSet);
 
                         Task.Run(() => persister.AddToPersistentCache(cacheForTheSet));
+                        Task.Run(() => nodeSynconizer.AddToNodes(cacheForTheSet, source));
                         Task.Run(() => AllocateMemory());
 
                         WriteStringToHttpResult("{\"result\":\"OK\"}", context);
@@ -366,6 +420,14 @@ namespace SwCache
             }
         }
 
+        private string GetSoureHeaderParam(HttpListenerContext context)
+        {
+            var headers = GetHeaders(context.Request);
+            string source = null;
+            headers.TryGetValue("source", out source);
+            return source;
+        }
+
         private void AddToMemoryCache(CacheRequestViewModel cacheForTheSet)
         {
             lock (lockObj)
@@ -378,6 +440,9 @@ namespace SwCache
                 cache.Add(cacheForTheSet.key, cacheForTheSet);
             }
         }
+
+
+
 
 
         /// <summary>
@@ -406,10 +471,10 @@ namespace SwCache
                 }
 
                 //for persistent mode
-                if(cachedContent==null)
+                if (cachedContent == null)
                 {
                     cachedContent = persister.TryToGetFromPersistent(cacheRequest.key);
-                    if(cachedContent!=null)
+                    if (cachedContent != null)
                     {
                         AddToMemoryCache(cachedContent);
                     }
@@ -421,7 +486,7 @@ namespace SwCache
                 }
             }
         }
-         
+
 
         /// <summary>
         /// Process Http Request
