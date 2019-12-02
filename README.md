@@ -56,5 +56,18 @@ If you set a persister provider below it will continue to use memory for perform
   </appSettings>
 ```
 
+
+## Multiple Servers (Nodes)
+You can have fully syncronized cache server by specifying nodes, date will be syncronized in two way, nodes-> otnernodes, master -> othernodes. It will be enough to set cache in any client.
+
+```xml
+  <appSettings>
+    <add key="id" value="master" />  <!--each node should have unique Id 'master' text doesn't matter -->
+    <add key="node1path" value="localhost" />
+    <add key="node1port" value="8181" />
+    <add key="node1id" value="master" />
+  </appSettings>
+```
+
 ## Management UI -> /Manage
 You can view and delete cache items manually via Manager
