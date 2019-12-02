@@ -1,4 +1,4 @@
-# SwCacheService
+# SwCacheService - Key Value Distributed Cache Service with node support
 
 SwCacheService is simple & fast outofproc HTTP cache solution which is developed with C#.
 It's running as http server in windows services. You can set and get cache values with keys.
