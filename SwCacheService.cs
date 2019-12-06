@@ -240,7 +240,7 @@ namespace SwCache
         /// <param name="context">Current HttpListener Context</param>
         private void AllocateMemory()
         {
-            if (lastAllocationDate > DateTime.Now.AddMinutes(-1))
+            if (lastAllocationDate > DateTime.Now.AddHours(-12))
             {
                 return;
             }
